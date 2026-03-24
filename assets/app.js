@@ -2898,7 +2898,7 @@ const App = () => {
             <div class="popover-footer">
               <div class="popover-buttons alt-hide">
                 <a
-                  href={`/bus-arrival/#${stopPopoverData.number}`}
+                  href={new URL('bus-arrival/', document.baseURI).pathname + `#${stopPopoverData.number}`}
                   target="_blank"
                   onClick={openBusArrival}
                   class="popover-button primary"
@@ -3094,7 +3094,7 @@ const App = () => {
             &times;
           </a>,
           <a
-            href={`/bus-arrival/#${showArrivalsPopover.number}`}
+            href={new URL('bus-arrival/', document.baseURI).pathname + `#${showArrivalsPopover.number}`}
             target="_blank"
             onClick={(e) => {
               openBusArrival(e, true);
