@@ -6,7 +6,7 @@
   "license": "",
   "scripts": {
     "start": "parcel serve index.html bus-arrival/index.html -p 8888",
-    "build": "parcel build index.html bus-arrival/index.html --no-cache --no-scope-hoist",
+    "build": "parcel build index.html bus-arrival/index.html --no-cache --no-scope-hoist --public-url /Excursion/",
     "generate:stop-areas": "node tasks/generateStopAreas.js",
     "postbuild": "cpy {favicon.ico} dist && node tasks/generateHeaders",
     "prod": "npx serve dist/",
