@@ -971,13 +971,21 @@ a.service-tag:hover {
     border: 2px solid #fff;
   }
 }
-.service-tag span {
+.service-tag .service-tag-pill {
   font-weight: normal;
   font-size: 0.75em;
   background-color: #fff;
   color: #666;
   padding: 10px 7px;
   margin: 0 -8px 0 5px;
+}
+.service-tag .service-tag-pill.interesting {
+  background-color: #f7f7d6;
+  color: #775f00;
+}
+.service-tag .service-tag-pill.arrival {
+  background-color: #fff;
+  color: #666;
 }
 .service-tag span.close {
   font-size: 0.95em;
@@ -1666,5 +1674,4 @@ input[type='checkbox']:checked:after {
   opacity: 1;
   transform: rotate(45deg);
 }
-
 

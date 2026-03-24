@@ -12,6 +12,7 @@ import { Protocol } from 'pmtiles';
 import { createMapStyle } from './map-style';
 import { encode, decode } from './utils/specialID';
 import { sortServices } from './utils/bus';
+import { rankStopServicesByInterestingness } from './utils/interesting';
 import fetchCache from './utils/fetchCache';
 import getRoute from './utils/getRoute';
 import getDistance from './utils/getDistance';
@@ -32,12 +33,13 @@ import openNewWindowImagePath from './images/open-new-window.svg';
 import openNewWindowBlueImagePath from './images/open-new-window-blue.svg';
 import passingRoutesBlueImagePath from './images/passing-routes-blue.svg';
 import busTinyImagePath from './images/bus-tiny.png';
+import stopAreasJSONPath from '../data/stops-areas.json';
+import areaVisitCountsJSONPath from '../data/area-visit-counts.json';
 
 const dataPath = 'https://data.busrouter.sg/v1/';
 const routesJSONPath = dataPath + 'routes.min.json';
 const stopsJSONPath = dataPath + 'stops.min.json';
 const servicesJSONPath = dataPath + 'services.min.json';
-const stopAreasJSONPath = dataPath + 'stops-areas.json';
 
 const $map = document.getElementById('map');
 const STORE = {};
@@ -200,6 +202,14 @@ const App = () => {
 
   const _showStopPopover = (number) => {
     const { services, coordinates, name } = stopsData[number];
+    const rankedServices = rankStopServicesByInterestingness({
+      stopNumber: number,
+      services,
+      servicesData,
+      stopsData,
+      stopAreas: STORE.stopAreas,
+      areaVisitCounts: STORE.areaVisitCounts,
+    });
 
     const popoverHeight = stopPopover.current?.offsetHeight;
     const offset = BREAKPOINT() ? [0, 0] : [0, -popoverHeight / 2];
@@ -257,7 +267,7 @@ const App = () => {
     setShrinkSearch(true);
     prevStopNumber.current = number;
     setShowStopPopover(true);
-    setStopPopoverData({ number, name, services });
+    setStopPopoverData({ number, name, services: rankedServices });
 
     requestAnimationFrame(() => {
       if (popoverHeight === stopPopover.current?.offsetHeight) return;
@@ -1208,6 +1218,7 @@ const App = () => {
     const fetchServicesP = fetchCache(servicesJSONPath, CACHE_TIME);
     const fetchRoutesP = fetchCache(routesJSONPath, CACHE_TIME);
     const fetchStopAreasP = fetchCache(stopAreasJSONPath, CACHE_TIME);
+    const fetchAreaVisitCountsP = fetchCache(areaVisitCountsJSONPath, CACHE_TIME);
 
     // Init data
 
@@ -1264,6 +1275,7 @@ const App = () => {
     routesData = await fetchRoutesP;
 
     STORE.stopAreas = await fetchStopAreasP.catch(() => null);
+    STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
 
     setServices(servicesDataArr);
 
@@ -1274,6 +1286,7 @@ const App = () => {
       routesData,
       servicesDataArr,
       stopAreas: STORE.stopAreas,
+      areaVisitCounts: STORE.areaVisitCounts,
     };
 
     // Set up PMTiles protocol
@@ -3136,4 +3149,3 @@ if (window.navigator.standalone) {
   // Enable CSS active states
   document.addEventListener('touchstart', () => {}, false);
 }
-

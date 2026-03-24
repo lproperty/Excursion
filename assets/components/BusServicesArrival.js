@@ -74,6 +74,16 @@ export default function BusServicesArrival({
   showBusesOnMap,
 }) {
   if (!id) return;
+  const serviceEntries = (services || []).map((service) =>
+    typeof service === 'string' ? { service } : service,
+  );
+  const orderedEntries = serviceEntries.some(
+    (entry) => typeof entry.score === 'number',
+  )
+    ? serviceEntries.slice()
+    : serviceEntries
+        .slice()
+        .sort((a, b) => sortServices(a.service, b.service));
   const [isLoading, setIsLoading] = useState(false);
   const [servicesArrivals, setServicesArrivals] = useState({});
   const [servicesIssues, setServicesIssues] = useState([]);
@@ -241,26 +251,41 @@ export default function BusServicesArrival({
   return (
     <>
       <p class={`services-list ${isLoading ? 'loading' : ''}`}>
-        {services.sort(sortServices).map((service) => (
-          <>
-            <a
-              href={`#/services/${service}`}
-              class={`service-tag ${
-                route.page === 'service' && servicesValue.includes(service)
-                  ? 'current'
-                  : ''
-              }`}
-            >
-              {service}
-              {servicesIssues.includes(service) && ' ⚠️'}
-              {servicesArrivals[service] && (
-                <span>
-                  <ArrivalTimeText ms={servicesArrivals[service]} />
-                </span>
-              )}
-            </a>{' '}
-          </>
-        ))}
+        {orderedEntries.map((entry) => {
+          const service = entry.service;
+          const interestingTitle =
+            typeof entry.scorePct === 'number'
+              ? `Interestingness ${entry.scorePct}/100`
+              : null;
+          return (
+            <Fragment key={service}>
+              <a
+                href={`#/services/${service}`}
+                class={`service-tag ${
+                  route.page === 'service' && servicesValue.includes(service)
+                    ? 'current'
+                    : ''
+                }`}
+                title={interestingTitle}
+              >
+                {service}
+                {entry.level &&
+                  typeof entry.scorePct === 'number' &&
+                  entry.scorePct > 0 && (
+                    <span class="service-tag-pill interesting">
+                      {entry.level} {entry.scorePct}
+                    </span>
+                  )}
+                {servicesIssues.includes(service) && ' ⚠️'}
+                {servicesArrivals[service] && (
+                  <span class="service-tag-pill arrival">
+                    <ArrivalTimeText ms={servicesArrivals[service]} />
+                  </span>
+                )}
+              </a>{' '}
+            </Fragment>
+          );
+        })}
       </p>
       {oneServiceHasMultipleDirections && (
         <div class="callout warning iconic">
