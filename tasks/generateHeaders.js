@@ -24,10 +24,6 @@ const headers = [
       /^wheelchair\..+svg$/,
     ],
   },
-  {
-    path: '/bus-first-last/',
-    files: [/^firstlast\..+js$/, /^firstlast\..+css$/],
-  },
 ];
 
 let content = '';

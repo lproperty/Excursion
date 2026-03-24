@@ -37,6 +37,7 @@ const dataPath = 'https://data.busrouter.sg/v1/';
 const routesJSONPath = dataPath + 'routes.min.json';
 const stopsJSONPath = dataPath + 'stops.min.json';
 const servicesJSONPath = dataPath + 'services.min.json';
+const stopAreasJSONPath = dataPath + 'stops-areas.json';
 
 const $map = document.getElementById('map');
 const STORE = {};
@@ -1206,6 +1207,7 @@ const App = () => {
     const fetchStopsP = fetchCache(stopsJSONPath, CACHE_TIME);
     const fetchServicesP = fetchCache(servicesJSONPath, CACHE_TIME);
     const fetchRoutesP = fetchCache(routesJSONPath, CACHE_TIME);
+    const fetchStopAreasP = fetchCache(stopAreasJSONPath, CACHE_TIME);
 
     // Init data
 
@@ -1261,6 +1263,8 @@ const App = () => {
 
     routesData = await fetchRoutesP;
 
+    STORE.stopAreas = await fetchStopAreasP.catch(() => null);
+
     setServices(servicesDataArr);
 
     window._data = {
@@ -1269,6 +1273,7 @@ const App = () => {
       stopsDataArr,
       routesData,
       servicesDataArr,
+      stopAreas: STORE.stopAreas,
     };
 
     // Set up PMTiles protocol
@@ -2867,21 +2872,7 @@ const App = () => {
             </header>
             <ScrollableContainer class="popover-scroll">
               <h2>
-                {`${stopPopoverData.services.length} ${stopPopoverData.services.length !== 1 ? 'services' : 'service'}`}{' '}
-                ∙{' '}
-                <a
-                  href={`/bus-first-last/#${stopPopoverData.number}`}
-                  target="_blank"
-                >
-                  First/last bus{' '}
-                  <img
-                    src={openNewWindowImagePath}
-                    width="12"
-                    height="12"
-                    alt=""
-                    class="new-window"
-                  />
-                </a>
+                {`${stopPopoverData.services.length} ${stopPopoverData.services.length !== 1 ? 'services' : 'service'}`}
               </h2>
               <BusServicesArrival
                 active={showStopPopover}
