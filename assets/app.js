@@ -31,7 +31,6 @@ import lrtStationImagePath from './images/lrt-station.png';
 import openNewWindowImagePath from './images/open-new-window.svg';
 import openNewWindowBlueImagePath from './images/open-new-window-blue.svg';
 import passingRoutesBlueImagePath from './images/passing-routes-blue.svg';
-import iconSVGPath from '../icons/icon.svg';
 import busTinyImagePath from './images/bus-tiny.png';
 
 const dataPath = 'https://data.busrouter.sg/v1/';
@@ -3147,33 +3146,3 @@ if (window.navigator.standalone) {
   document.addEventListener('touchstart', () => {}, false);
 }
 
-const isSafari = navigator.vendor && navigator.vendor.indexOf('Apple') !== -1;
-if (isSafari && !window.navigator.standalone) {
-  setTimeout(function () {
-    const ratio = window.devicePixelRatio;
-    const canvas = document.createElement('canvas');
-    const w = (canvas.width = window.screen.width * ratio);
-    const h = (canvas.height = window.screen.height * ratio);
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#F9F5ED';
-    ctx.fillRect(0, 0, w, h);
-    const icon = new Image();
-    icon.onload = () => {
-      const aspectRatio = icon.width / icon.height;
-      icon.width = w / 2;
-      icon.height = w / 2 / aspectRatio;
-      ctx.drawImage(
-        icon,
-        (w - icon.width) / 2,
-        (h - icon.height) / 2,
-        icon.width,
-        icon.height,
-      );
-      document.head.insertAdjacentHTML(
-        'beforeend',
-        `<link rel="apple-touch-startup-image" href="${canvas.toDataURL()}">`,
-      );
-    };
-    icon.src = iconSVGPath;
-  }, 5000);
-}
