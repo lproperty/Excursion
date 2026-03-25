@@ -674,7 +674,7 @@ const App = () => {
     'meta[property="og:image"]',
   ).content;
   const defaultHead = {
-    title: 'Anti-coma Excursion - Singapore Bus Routes Explorer',
+    title: 'Anti-coma Excursion',
     url: defaultURL,
     desc: 'Explore bus stops and routes on the map for all bus services in Singapore, with realtime bus arrival times and per-bus-stop passing routes overview.',
     image: defaultImg,
