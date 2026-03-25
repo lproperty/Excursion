@@ -29,11 +29,12 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 | `assets/arrival.js` | Real-time bus arrival page logic |
 | `assets/map-style.js` | MapLibre GL style configuration |
 | `assets/components/` | Preact components (JSX) |
+| `assets/components/AreaInterestingness.jsx` | Renders ranked area list (visit count + novelty score pills) |
 | `assets/utils/bus.js` | Service sort (alphanumeric), time formatting |
 | `assets/utils/fetchCache.js` | Fetch wrapper with localStorage cache (24h TTL) |
 | `assets/utils/getRoute.js` | URL hash router (parses `#/services/10`, `#/stops/12345`, etc.) |
 | `assets/utils/specialID.js` | Stop ID encoding/decoding |
-| `assets/utils/interesting.js` | Interestingness ranking — `rankStopServicesByInterestingness()` |
+| `assets/utils/interesting.js` | Interestingness ranking — `rankStopServicesByInterestingness()`, `computeAreaInterestingness()` |
 | `assets/utils/areas.js` | `getServiceAreas()` — planning areas a service passes through |
 | `service-worker.js` | Workbox cache strategies |
 
@@ -112,6 +113,22 @@ Each result object: `{ service, routeIndex, terminalStop, onwardAreas, onwardAre
 
 `tasks/generateStopAreas.js` — fetches `stops.min.json`, tests each stop against `data/planning-areas.geojson` polygons (point-in-polygon via `@turf/boolean-point-in-polygon`), outputs `data/stops-areas.json`. Run via `npm run generate:stop-areas`. Fallback: nearest polygon centroid within 500 m for stops on reclaimed land / near boundaries.
 
+### Area Interestingness (`computeAreaInterestingness`)
+
+`assets/utils/interesting.js` also exports `computeAreaInterestingness(areaVisitCounts)` — computes per-area novelty scores and returns all 51 planning areas sorted by visit count descending (most visited first), then alphabetically. Each entry: `{ area, visitCount, novelty, scorePct, level }`.
+
+- Used as the **default view** in the search panel (`assets/app.js`) via the `AreaInterestingness` component
+- Also powers **area search** via `fuseAreas` (Fuse.js, threshold 0.3, keyed on `area`)
+- Area search results appear at the top of search results above services and stops
+- Scores can never be negative (range 0–100); `1 / (visitCount + 1)` always positive
+
+## Deployment
+
+Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
+
+- Workflow: `.github/workflows/deploy-pages.yml` — builds with `--public-url /Excursion/` and uploads `dist/` via `actions/upload-pages-artifact`
+- Pages source must be set to **GitHub Actions** (not legacy branch deploy) — configured via `gh api repos/lproperty/Excursion/pages`
+- **Dev server note**: After running `npm run build`, clear `.parcel-cache/` before `npm start` to avoid stale `/Excursion/` paths in the dev server
 
 ## Patterns
 - **State**: Preact hooks for component state; global `STORE` object in `app.js` for shared state
@@ -127,6 +144,13 @@ Each result object: `{ service, routeIndex, terminalStop, onwardAreas, onwardAre
 | `playwright.config.js` | Chromium only, port 8888, auto-starts dev server |
 | `.prettierrc` | 2-space indent, single quotes, trailing commas |
 | `netlify.toml` | Deployment config and redirects |
+
+## Branding
+
+This project was forked from BusRouter SG and rebranded as **Anti-coma Excursion** / **Excursion**:
+- Page titles updated to "Anti-coma Excursion"
+- `manifest.webmanifest` name/short_name → "Excursion"
+- CNAME removed (no longer deployed to busrouter.sg)
 
 ## What Has Been Removed
 - **Attribution control** — MapLibre `AttributionControl` removed from map
