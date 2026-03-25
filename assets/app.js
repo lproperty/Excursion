@@ -674,7 +674,7 @@ const App = () => {
     'meta[property="og:image"]',
   ).content;
   const defaultHead = {
-    title: 'BusRouter SG - Singapore Bus Routes Explorer',
+    title: 'Anti-coma Excursion - Singapore Bus Routes Explorer',
     url: defaultURL,
     desc: 'Explore bus stops and routes on the map for all bus services in Singapore, with realtime bus arrival times and per-bus-stop passing routes overview.',
     image: defaultImg,
@@ -739,7 +739,7 @@ const App = () => {
           const service = services[0];
           const { name, routes } = servicesData[service];
           setHead({
-            title: `Bus service ${service}: ${name} - BusRouter SG`,
+            title: `Bus service ${service}: ${name} - Excursion`,
             url: `/services/${service}`,
           });
 
@@ -819,7 +819,7 @@ const App = () => {
             })
             .join(', ');
           setHead({
-            title: `Bus services: ${serviceNumbersNames} - BusRouter SG`,
+            title: `Bus services: ${serviceNumbersNames} - Excursion`,
             url: `/services/${services.join('~')}`,
           });
 
@@ -948,7 +948,7 @@ const App = () => {
         const { routes, name, coordinates } = stopsData[stop];
         if (route.subpage === 'routes') {
           setHead({
-            title: `Routes passing bus stop ${stop}: ${name} - BusRouter SG`,
+            title: `Routes passing bus stop ${stop}: ${name} - Excursion`,
             url: `/stops/${stop}/routes`,
           });
 
@@ -1048,7 +1048,7 @@ const App = () => {
           });
         } else {
           setHead({
-            title: `Bus stop ${stop}: ${name} - BusRouter SG`,
+            title: `Bus stop ${stop}: ${name} - Excursion`,
             url: `/stops/${stop}`,
           });
           map.setLayoutProperty('stops', 'visibility', 'visible');
@@ -1068,7 +1068,7 @@ const App = () => {
         }
 
         setHead({
-          title: `Routes between ${startStopNumber} and ${endStopNumber} - BusRouter SG`,
+          title: `Routes between ${startStopNumber} and ${endStopNumber} - Excursion`,
           url: `/between/${startStopNumber}-${endStopNumber}`,
         });
         // Reset
