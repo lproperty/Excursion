@@ -202,6 +202,12 @@ const App = () => {
     setAreaResults([]);
   };
 
+  const zoomToArea = (areaName) => {
+    const bounds = STORE.areaBounds?.[areaName];
+    if (!bounds || bounds.isEmpty()) return;
+    map.fitBounds(bounds, { padding: { top: 80, right: 80, bottom: 80, left: 80 } });
+  };
+
   const handleServicesScroll = () => {
     if (expandSearch || expandedSearchOnce) return;
     setExpandSearch(true);
@@ -1285,6 +1291,19 @@ const App = () => {
 
     STORE.stopAreas = await fetchStopAreasP.catch(() => null);
     STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
+
+    if (STORE.stopAreas) {
+      STORE.areaBounds = {};
+      for (const [stopNumber, areaName] of Object.entries(STORE.stopAreas)) {
+        const stop = stopsData[stopNumber];
+        if (!stop) continue;
+        if (!STORE.areaBounds[areaName]) {
+          STORE.areaBounds[areaName] = new maplibregl.LngLatBounds();
+        }
+        STORE.areaBounds[areaName].extend(stop.coordinates);
+      }
+    }
+
     const areaData = computeAreaInterestingness(STORE.areaVisitCounts);
     setAreaInterestingness(areaData);
     fuseAreas = new Fuse(areaData, {
@@ -2807,7 +2826,7 @@ const App = () => {
               {!!areaResults.length &&
                 areaResults.map(({ area, scorePct, level }) => (
                   <li key={area}>
-                    <a href="#/" onClick={(e) => { e.preventDefault(); resetSearch(); }}>
+                    <a href="#/" onClick={(e) => { e.preventDefault(); zoomToArea(area); }}>
                       <b class="area-tag">{area}</b>
                       <span class={`area-level area-level-${level.toLowerCase().replace(' ', '-')}`}>
                         {level} {scorePct}
@@ -2877,7 +2896,7 @@ const App = () => {
             </ul>
           ) : areaInterestingness.length > 0 ? (
             <div class="popover-areas-scroll" ref={servicesList}>
-              <AreaInterestingness areas={areaInterestingness} />
+              <AreaInterestingness areas={areaInterestingness} onAreaClick={zoomToArea} />
             </div>
           ) : (
             <ul class="popover-list loading" ref={servicesList}>

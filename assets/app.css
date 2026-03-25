@@ -647,6 +647,9 @@ a:active {
   align-items: center;
   color: #000;
 }
+.popover-list li a:active {
+  background-color: rgba(0, 0, 0, 0.08);
+}
 @media (hover: hover) {
   .popover-list li a:hover {
     background-color: rgba(255, 255, 255, 0.6);
@@ -1006,6 +1009,18 @@ a.service-tag:hover {
   align-items: center;
   padding: 7px 0;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+.area-item-clickable {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.area-item-clickable:active {
+  background: rgba(0, 0, 0, 0.1);
+}
+@media (hover: hover) {
+  .area-item-clickable:hover {
+    background: rgba(0, 0, 0, 0.04);
+  }
 }
 .area-name {
   font-size: 13px;
