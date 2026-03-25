@@ -2805,6 +2805,17 @@ const App = () => {
               ref={servicesList}
               onScroll={handleServicesScroll}
             >
+              {!!areaResults.length &&
+                areaResults.map(({ area, scorePct, level }) => (
+                  <li key={area}>
+                    <a href="#/" onClick={(e) => { e.preventDefault(); resetSearch(); }}>
+                      <b class="area-tag">{area}</b>
+                      <span class={`area-level area-level-${level.toLowerCase().replace(' ', '-')}`}>
+                        {level} {scorePct}
+                      </span>
+                    </a>
+                  </li>
+                ))}
               {services.length
                 ? services.map((s) => {
                     const isServicePage = route.page === 'service';
@@ -2858,17 +2869,6 @@ const App = () => {
                   <li key={s.number}>
                     <a href={`#/stops/${s.number}`}>
                       <b class="stop-tag">{s.number}</b> {s.name}
-                    </a>
-                  </li>
-                ))}
-              {!!areaResults.length &&
-                areaResults.map(({ area, scorePct, level }) => (
-                  <li key={area}>
-                    <a href="#/" onClick={(e) => { e.preventDefault(); resetSearch(); }}>
-                      <b class="area-tag">{area}</b>
-                      <span class={`area-level area-level-${level.toLowerCase().replace(' ', '-')}`}>
-                        {level} {scorePct}
-                      </span>
                     </a>
                   </li>
                 ))}

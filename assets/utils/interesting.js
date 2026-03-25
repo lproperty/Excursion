@@ -79,7 +79,7 @@ export function computeAreaInterestingness(areaVisitCounts) {
       return { area, visitCount, novelty, scorePct, level };
     })
     .sort((a, b) => {
-      if (b.novelty !== a.novelty) return b.novelty - a.novelty;
+      if (b.visitCount !== a.visitCount) return b.visitCount - a.visitCount;
       return a.area.localeCompare(b.area);
     });
 }
