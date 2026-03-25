@@ -202,6 +202,15 @@ const App = () => {
     setAreaResults([]);
   };
 
+  const updateAreaVisitCount = (area, delta) => {
+    const current = STORE.areaVisitCounts[area] || 0;
+    STORE.areaVisitCounts[area] = Math.max(0, current + delta);
+    localStorage.setItem('excursion-area-visit-counts', JSON.stringify(STORE.areaVisitCounts));
+    const areaData = computeAreaInterestingness(STORE.areaVisitCounts);
+    setAreaInterestingness(areaData);
+    fuseAreas = new Fuse(areaData, { threshold: 0.3, keys: ['area'] });
+  };
+
   const zoomToArea = (areaName) => {
     const bounds = STORE.areaBounds?.[areaName];
     if (!bounds || bounds.isEmpty()) return;
@@ -1291,6 +1300,8 @@ const App = () => {
 
     STORE.stopAreas = await fetchStopAreasP.catch(() => null);
     STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
+    const savedCounts = JSON.parse(localStorage.getItem('excursion-area-visit-counts') || '{}');
+    Object.assign(STORE.areaVisitCounts, savedCounts);
 
     if (STORE.stopAreas) {
       STORE.areaBounds = {};
@@ -2896,7 +2907,7 @@ const App = () => {
             </ul>
           ) : areaInterestingness.length > 0 ? (
             <div class="popover-areas-scroll" ref={servicesList}>
-              <AreaInterestingness areas={areaInterestingness} onAreaClick={zoomToArea} />
+              <AreaInterestingness areas={areaInterestingness} onAreaClick={zoomToArea} onVisitCountChange={updateAreaVisitCount} />
             </div>
           ) : (
             <ul class="popover-list loading" ref={servicesList}>
