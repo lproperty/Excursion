@@ -251,12 +251,6 @@ table tbody td.blank {
   margin-right: 10px;
 }
 
-footer {
-  padding: 10px;
-  background-color: #f7f7f7;
-  font-size: 14px;
-  display: flow-root;
-}
 
 .stop-tag {
   display: inline-block;
