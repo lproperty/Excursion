@@ -94,6 +94,7 @@ let stopsData = {};
 let routesData;
 let fuseServices;
 let fuseStops;
+let fuseAreas;
 
 const App = () => {
   const [route, setRoute] = useState(getRoute());
@@ -102,6 +103,7 @@ const App = () => {
   const [routeLoading, setRouteLoading] = useState(true);
   const [services, setServices] = useState([]);
   const [stops, setStops] = useState([]);
+  const [areaResults, setAreaResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [expandSearch, setExpandSearch] = useState(false);
   const [expandedSearchOnce, setExpandedSearchOnce] = useState(false);
@@ -117,7 +119,6 @@ const App = () => {
   const [betweenStartStop, setBetweenStartStop] = useState(null);
   const [betweenEndStop, setBetweenEndStop] = useState(null);
 
-  const [showAreaPopover, setShowAreaPopover] = useState(false);
   const [areaInterestingness, setAreaInterestingness] = useState([]);
 
   const prevStopNumber = useRef(null);
@@ -168,8 +169,10 @@ const App = () => {
       if (services.length < 20) {
         stops = fuseStops.search(value);
       }
+      const areas = fuseAreas ? fuseAreas.search(value).map((r) => r.item) : [];
       setServices(services.map((s) => s.item));
       setStops(stops.map((s) => s.item));
+      setAreaResults(areas);
       setSearching(true);
       // Scroll to top, with hack for momentum scrolling
       // https://popmotion.io/blog/20170704-manually-set-scroll-while-ios-momentum-scroll-bounces/
@@ -179,6 +182,7 @@ const App = () => {
     } else {
       setServices(servicesDataArr);
       setStops([]);
+      setAreaResults([]);
       setSearching(false);
     }
   };
@@ -195,6 +199,7 @@ const App = () => {
     setSearching(false);
     setServices(servicesDataArr);
     setStops([]);
+    setAreaResults([]);
   };
 
   const handleServicesScroll = () => {
@@ -1280,7 +1285,12 @@ const App = () => {
 
     STORE.stopAreas = await fetchStopAreasP.catch(() => null);
     STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
-    setAreaInterestingness(computeAreaInterestingness(STORE.areaVisitCounts));
+    const areaData = computeAreaInterestingness(STORE.areaVisitCounts);
+    setAreaInterestingness(areaData);
+    fuseAreas = new Fuse(areaData, {
+      threshold: 0.3,
+      keys: ['area'],
+    });
 
     setServices(servicesDataArr);
 
@@ -2789,25 +2799,14 @@ const App = () => {
               Cancel
             </button>
           </div>
-          {areaInterestingness.length > 0 && (
-            <button
-              type="button"
-              class="area-explore-btn"
-              onclick={() => setShowAreaPopover(true)}
+          {searching ? (
+            <ul
+              class={`popover-list searching`}
+              ref={servicesList}
+              onScroll={handleServicesScroll}
             >
-              Explore areas
-            </button>
-          )}
-          <ul
-            class={`popover-list ${
-              services.length || searching ? '' : 'loading'
-            } ${searching ? 'searching' : ''}`}
-            ref={servicesList}
-            onScroll={handleServicesScroll}
-          >
-            {services.length
-              ? (expandedSearchOnce ? services : services.slice(0, 25)).map(
-                  (s) => {
+              {services.length
+                ? services.map((s) => {
                     const isServicePage = route.page === 'service';
                     const checked =
                       route.value && route.value.split('~').includes(s.number);
@@ -2852,33 +2851,50 @@ const App = () => {
                         </label>
                       </li>
                     );
-                  },
-                )
-              : !searching &&
-                [1, 2, 3, 4, 5, 6, 7, 8].map((s, i) => (
-                  <li key={s}>
-                    <a href="#">
-                      <b class="service-tag">&nbsp;&nbsp;&nbsp;</b>
-                      <span class="placeholder">
-                        █████{i % 3 == 0 ? '███' : ''} ███
-                        {i % 2 == 0 ? '████' : ''}
+                  })
+                : null}
+              {!!stops.length &&
+                stops.map((s) => (
+                  <li key={s.number}>
+                    <a href={`#/stops/${s.number}`}>
+                      <b class="stop-tag">{s.number}</b> {s.name}
+                    </a>
+                  </li>
+                ))}
+              {!!areaResults.length &&
+                areaResults.map(({ area, scorePct, level }) => (
+                  <li key={area}>
+                    <a href="#/" onClick={(e) => { e.preventDefault(); resetSearch(); }}>
+                      <b class="area-tag">{area}</b>
+                      <span class={`area-level area-level-${level.toLowerCase().replace(' ', '-')}`}>
+                        {level} {scorePct}
                       </span>
                     </a>
                   </li>
                 ))}
-            {searching &&
-              !!stops.length &&
-              stops.map((s) => (
-                <li key={s.number}>
-                  <a href={`#/stops/${s.number}`}>
-                    <b class="stop-tag">{s.number}</b> {s.name}
+              {!stops.length && !services.length && !areaResults.length && (
+                <li class="nada">No results.</li>
+              )}
+            </ul>
+          ) : areaInterestingness.length > 0 ? (
+            <div class="popover-areas-scroll" ref={servicesList}>
+              <AreaInterestingness areas={areaInterestingness} />
+            </div>
+          ) : (
+            <ul class="popover-list loading" ref={servicesList}>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((s, i) => (
+                <li key={s}>
+                  <a href="#">
+                    <b class="service-tag">&nbsp;&nbsp;&nbsp;</b>
+                    <span class="placeholder">
+                      █████{i % 3 == 0 ? '███' : ''} ███
+                      {i % 2 == 0 ? '████' : ''}
+                    </span>
                   </a>
                 </li>
               ))}
-            {searching && !stops.length && !services.length && (
-              <li class="nada">No results.</li>
-            )}
-          </ul>
+            </ul>
+          )}
         </div>
       </div>
       <div
@@ -3097,30 +3113,6 @@ const App = () => {
               }
             />
           </div>,
-        ]}
-      </div>
-      <div
-        id="area-popover"
-        class={`popover ${showAreaPopover ? 'expand' : ''}`}
-      >
-        {showAreaPopover && [
-          <a
-            href="#/"
-            onClick={(e) => {
-              e.preventDefault();
-              setShowAreaPopover(false);
-            }}
-            class="popover-close"
-          >
-            &times;
-          </a>,
-          <header>
-            <h1>Area Interestingness</h1>
-          </header>,
-          <ScrollableContainer class="popover-scroll">
-            <h2>{areaInterestingness.length} planning areas</h2>
-            <AreaInterestingness areas={areaInterestingness} />
-          </ScrollableContainer>,
         ]}
       </div>
       <div
