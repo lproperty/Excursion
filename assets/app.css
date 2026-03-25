@@ -1034,40 +1034,7 @@ a.service-tag:hover {
   flex-shrink: 0;
 }
 .area-visits {
-  color: #555;
-  min-width: 1.5em;
-  text-align: center;
-}
-.visit-controls {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.visit-btn {
-  width: 20px;
-  height: 20px;
-  padding: 0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-  color: #555;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.visit-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  border-color: #999;
-}
-.visit-btn:active {
-  background: rgba(0, 0, 0, 0.12);
-}
-.visit-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
+  color: #aaa;
 }
 .area-level {
   padding: 2px 6px;
