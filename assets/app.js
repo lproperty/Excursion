@@ -2802,7 +2802,7 @@ const App = () => {
           <div class="popover-search">
             <input
               type="search"
-              placeholder="Search for bus service or stop"
+              placeholder="Search for bus or stop or area"
               autocomplete="off"
               autocorrect="off"
               autocapitalize="off"
