@@ -5,8 +5,9 @@
   "display": "standalone",
   "background_color": "#F9F5ED",
   "theme_color": "#F9F5ED",
-  "scope": "/",
-  "start_url": "/",
+  "id": "/Excursion/",
+  "scope": "/Excursion/",
+  "start_url": "/Excursion/",
   "icons": [{
       "src": "icons/icon-192.png",
       "sizes": "192x192",
