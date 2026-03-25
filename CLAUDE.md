@@ -1,4 +1,4 @@
-# BusRouter SG — Technical Notes
+# Excursion — Technical Notes
 
 ## Project
 Singapore Bus Routes Explorer — interactive map.

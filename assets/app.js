@@ -12,7 +12,8 @@ import { Protocol } from 'pmtiles';
 import { createMapStyle } from './map-style';
 import { encode, decode } from './utils/specialID';
 import { sortServices } from './utils/bus';
-import { rankStopServicesByInterestingness } from './utils/interesting';
+import { rankStopServicesByInterestingness, computeAreaInterestingness } from './utils/interesting';
+import AreaInterestingness from './components/AreaInterestingness';
 import fetchCache from './utils/fetchCache';
 import getRoute from './utils/getRoute';
 import getDistance from './utils/getDistance';
@@ -115,6 +116,9 @@ const App = () => {
   const [showBetweenPopover, setShowBetweenPopover] = useState(false);
   const [betweenStartStop, setBetweenStartStop] = useState(null);
   const [betweenEndStop, setBetweenEndStop] = useState(null);
+
+  const [showAreaPopover, setShowAreaPopover] = useState(false);
+  const [areaInterestingness, setAreaInterestingness] = useState([]);
 
   const prevStopNumber = useRef(null);
   const servicesList = useRef(null);
@@ -1276,6 +1280,7 @@ const App = () => {
 
     STORE.stopAreas = await fetchStopAreasP.catch(() => null);
     STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
+    setAreaInterestingness(computeAreaInterestingness(STORE.areaVisitCounts));
 
     setServices(servicesDataArr);
 
@@ -2784,6 +2789,15 @@ const App = () => {
               Cancel
             </button>
           </div>
+          {areaInterestingness.length > 0 && (
+            <button
+              type="button"
+              class="area-explore-btn"
+              onclick={() => setShowAreaPopover(true)}
+            >
+              Explore areas
+            </button>
+          )}
           <ul
             class={`popover-list ${
               services.length || searching ? '' : 'loading'
@@ -3083,6 +3097,30 @@ const App = () => {
               }
             />
           </div>,
+        ]}
+      </div>
+      <div
+        id="area-popover"
+        class={`popover ${showAreaPopover ? 'expand' : ''}`}
+      >
+        {showAreaPopover && [
+          <a
+            href="#/"
+            onClick={(e) => {
+              e.preventDefault();
+              setShowAreaPopover(false);
+            }}
+            class="popover-close"
+          >
+            &times;
+          </a>,
+          <header>
+            <h1>Area Interestingness</h1>
+          </header>,
+          <ScrollableContainer class="popover-scroll">
+            <h2>{areaInterestingness.length} planning areas</h2>
+            <AreaInterestingness areas={areaInterestingness} />
+          </ScrollableContainer>,
         ]}
       </div>
       <div

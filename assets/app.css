@@ -170,7 +170,8 @@ a:active {
 #stop-popover,
 #between-popover,
 #arrivals-popover,
-#service-popover {
+#service-popover,
+#area-popover {
   top: 101%;
   transition: all 0.3s 0.1s ease-in-out;
   max-height: 50vh;
@@ -180,7 +181,8 @@ a:active {
 #stop-popover.expand,
 #between-popover.expand,
 #arrivals-popover.expand,
-#service-popover.expand {
+#service-popover.expand,
+#area-popover.expand {
   transform: translateY(-101%);
 }
 #stop-popover.expand {
@@ -195,13 +197,15 @@ a:active {
 }
 #stop-popover header,
 #between-popover header,
-#service-popover header {
+#service-popover header,
+#area-popover header {
   flex-shrink: 0;
   padding: 12px 40px 0 12px;
 }
 #stop-popover h1,
 #between-popover h1,
-#service-popover h1 {
+#service-popover h1,
+#area-popover h1 {
   font-size: 1em;
   margin: 0 0 0.5em;
   padding: 0;
@@ -986,6 +990,82 @@ a.service-tag:hover {
 .service-tag .service-tag-pill.arrival {
   background-color: #fff;
   color: #666;
+}
+
+/* Area Interestingness Popover */
+#area-popover.expand {
+  z-index: 3;
+}
+#area-popover h2 {
+  font-size: 0.8em;
+  font-weight: normal;
+  margin: 0 0 0.5em;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.area-explore-btn {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f7f7d6;
+  color: #775f00;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.area-explore-btn:hover {
+  background: #efedbc;
+}
+.area-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.area-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+.area-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+.area-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.area-visits {
+  color: #aaa;
+}
+.area-level {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 11px;
+}
+.area-level-very-high,
+.area-level-high {
+  background: #d4edda;
+  color: #155724;
+}
+.area-level-medium {
+  background: #fff3cd;
+  color: #856404;
+}
+.area-level-low,
+.area-level-very-low {
+  background: #f0f0f0;
+  color: #888;
 }
 .service-tag span.close {
   font-size: 0.95em;

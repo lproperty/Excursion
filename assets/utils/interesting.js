@@ -18,7 +18,7 @@ const absoluteAreaScore = (rawNovelty) => {
   return Math.min(rawNovelty, 1);
 };
 
-const getLevelLabel = (score) => {
+export const getLevelLabel = (score) => {
   if (score >= 0.8) return 'Very high';
   if (score >= 0.6) return 'High';
   if (score >= 0.4) return 'Medium';
@@ -26,7 +26,7 @@ const getLevelLabel = (score) => {
   return 'Very low';
 };
 
-const getVisitCount = (areaVisitCounts, area) => {
+export const getVisitCount = (areaVisitCounts, area) => {
   const value = areaVisitCounts?.[area];
   return Number.isFinite(value) ? value : 0;
 };
@@ -67,6 +67,22 @@ const compareInterestingEntries = (a, b) => {
   if (b.score !== a.score) return b.score - a.score;
   return sortServices(a.service, b.service);
 };
+
+export function computeAreaInterestingness(areaVisitCounts) {
+  if (!areaVisitCounts) return [];
+  return Object.keys(areaVisitCounts)
+    .map((area) => {
+      const visitCount = getVisitCount(areaVisitCounts, area);
+      const novelty = 1 / (visitCount + 1);
+      const scorePct = Math.round(novelty * 100);
+      const level = getLevelLabel(novelty);
+      return { area, visitCount, novelty, scorePct, level };
+    })
+    .sort((a, b) => {
+      if (b.novelty !== a.novelty) return b.novelty - a.novelty;
+      return a.area.localeCompare(b.area);
+    });
+}
 
 export function rankStopServicesByInterestingness({
   stopNumber,
