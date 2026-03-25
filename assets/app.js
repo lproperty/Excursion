@@ -1317,7 +1317,7 @@ const App = () => {
       renderWorldCopies: false,
       boxZoom: false,
       minZoom: 8,
-      maplibreLogo: false,
+      logoPosition: 'bottom-left',
       attributionControl: false,
       pitchWithRotate: false,
       dragRotate: supportsTouch,
