@@ -93,10 +93,12 @@ a:active {
 .maplibregl-ctrl-group button.maplibregl-ctrl-compass.show {
   display: block;
 }
-.maplibregl-ctrl-logo {
+.maplibregl-ctrl-logo,
+.mapboxgl-ctrl-logo {
   display: none !important;
 }
-.maplibregl-ctrl-bottom-right {
+.maplibregl-ctrl-bottom-right,
+.mapboxgl-ctrl-bottom-right {
   display: none !important;
 }
 .maplibregl-ctrl-bottom-left {
