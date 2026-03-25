@@ -29,7 +29,7 @@ jobs:
         run: npm ci
 
       - name: Build
-        run: npx parcel build index.html bus-arrival/index.html --no-cache --no-scope-hoist --public-url ./
+        run: npx parcel build index.html bus-arrival/index.html --no-cache --no-scope-hoist --public-url /Excursion/
 
       - name: Copy favicon
         run: cp favicon.ico dist/
