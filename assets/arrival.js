@@ -300,16 +300,15 @@ function ArrivalTimes() {
     <div>
       <div id="bus-stop-map">
         <img
-          src={`https://busroutersg-staticmaps.cheeaun.workers.dev/${lng},${lat},17,0,60/400x200@2x`}
+          src={`https://busroutersg-staticmaps.cheeaun.workers.dev/${lng},${lat},17,0,60/400x250@2x`}
           alt="Bus stop map"
           width="400"
-          height="200"
-          intrinsicsize="400x200"
+          height="250"
+          intrinsicsize="400x250"
           loading="lazy"
         />
       </div>
       <h1>
-        Bus arrival times
         <b id="bus-stop-name">
           <span class={`stop-tag ${fetchServicesStatus}`}>{code}</span> {name}
         </b>

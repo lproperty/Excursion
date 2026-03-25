@@ -45,6 +45,7 @@ main {
 #bus-stop-map {
   position: relative;
   padding-top: 50%;
+  overflow: hidden;
 }
 
 #bus-stop-map img {
@@ -354,6 +355,8 @@ table tbody td.blank {
   }
   #bus-stop-map {
     padding-top: 0;
+    height: 200px;
+    overflow: hidden;
   }
   #bus-stop-map img {
     position: static;

@@ -47,9 +47,8 @@ a:active {
 #map {
   position: fixed;
   top: 0;
-  bottom: -30px;
+  bottom: 0;
   width: 100%;
-  clip-path: inset(0);
   transition: filter 0.3s ease-in-out;
   background-color: #f9f5ed;
 }
