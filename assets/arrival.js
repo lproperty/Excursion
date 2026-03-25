@@ -394,18 +394,6 @@ function ArrivalTimes() {
           </p>
         )}
       </div>
-      <footer>
-        <p>
-          <WheelChair size="16" /> All public buses in revenue service are{' '}
-          <a
-            href="https://en.wikipedia.org/wiki/Public_buses_of_Singapore#2020s:_In_with_electric_buses,_out_with_non-wheelchair-accessible_buses"
-            target="_blank"
-          >
-            wheelchair-accessible
-          </a>
-          . The ones that are not accesssible will be marked with this icon <WheelChairInaccessible size="16" />.
-        </p>
-      </footer>
     </div>
   );
 }
