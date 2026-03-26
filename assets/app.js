@@ -1443,6 +1443,21 @@ const App = () => {
     map.once('dragstart', initialHideSearch);
     map.once('zoomstart', initialHideSearch);
 
+    // Zoom to user's current location on first visit
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          map.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: 15,
+            duration: 1500,
+          });
+        },
+        () => {}, // silently ignore if denied/unavailable
+        { timeout: 5000 },
+      );
+    }
+
     await new Promise((resolve, reject) => {
       map.once('styledata', () => {
         const layers = map.getStyle().layers;
