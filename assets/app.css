@@ -1173,7 +1173,8 @@ a.service-tag:hover {
   opacity: 1;
   box-shadow: inset 3px 0 0 #00897b;
 }
-.stops-table td.origin:first-child a {
+.stops-table td.origin.origin-right a,
+.stops-list li.origin.origin-right a {
   box-shadow: inset -3px 0 0 #00897b;
 }
 
