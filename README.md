@@ -13,15 +13,16 @@ Live at: **https://lproperty.github.io/Excursion/**
 - **Interestingness ranking** — services scored by distance and area novelty, so you can find a good excursion at a glance
 - Search for bus services, stops, or planning areas
 - Click a planning area to zoom the map to it
+- Zooms to your current location on first load
+- Origin stop clearly marked when viewing a route from a stop
 - Works as a PWA (add to home screen on iPhone/Android)
 
 ## Development
 
 ```bash
 npm install
-npm start        # Dev server on :8888
-npm run build    # Production build → ./dist/
-npm run test:e2e # Playwright E2E tests
+npm start       # Dev server on :8888
+npm run build   # Production build → ./dist/
 ```
 
 ## Credits
