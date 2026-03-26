@@ -1449,7 +1449,7 @@ const App = () => {
         (pos) => {
           map.flyTo({
             center: [pos.coords.longitude, pos.coords.latitude],
-            zoom: 15,
+            zoom: 16,
             duration: 1500,
           });
         },

@@ -9,7 +9,6 @@ Multi-entry-point build: main app + 1 mini-site (bus-arrival).
 npm start                  # Dev server on :8888 (2 entry points)
 npm run build              # Production build → ./dist/
 npm run prod               # Serve dist/ locally
-npm run test:e2e           # Playwright E2E tests (Chromium only)
 npm run generate:stop-areas  # Precompute stop → planning area mapping → data/stops-areas.json
 ```
 
@@ -134,14 +133,13 @@ Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
 - **State**: Preact hooks for component state; global `STORE` object in `app.js` for shared state
 - **Geo**: use `cheap-ruler` for distance/bearing, `turf` only for polygon ops
 - **Caching**: `fetchCache.js` for API calls; Workbox for asset caching
-- **Testing**: Playwright E2E in `tests/e2e/`; StopsList unit tests in `tests/StopsList/` (Vite)
+- **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible). Silently falls back to default Singapore bounds if denied/unavailable.
 
 ## Config Files
 | File | Purpose |
 |------|---------|
 | `.babelrc` | JSX pragma → `h` for Preact |
 | `.parcelrc` | Custom transforms (SVG raw, JSON) |
-| `playwright.config.js` | Chromium only, port 8888, auto-starts dev server |
 | `.prettierrc` | 2-space indent, single quotes, trailing commas |
 | `netlify.toml` | Deployment config and redirects |
 
