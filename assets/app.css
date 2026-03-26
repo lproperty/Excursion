@@ -1056,6 +1056,179 @@ a.service-tag:hover {
   background: #f0f0f0;
   color: #888;
 }
+/* Service Interestingness Breakdown */
+.service-interestingness {
+  padding: 10px 14px;
+  margin: 0 -14px 6px;
+  background: #fafaf5;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+.si-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.si-origin {
+  font-size: 0.8em;
+  color: #666;
+}
+.score-breakdown {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.score-component {
+  flex: 1;
+  min-width: 0;
+}
+.score-bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 0.7em;
+  color: #555;
+  margin-bottom: 3px;
+  font-weight: 500;
+}
+.score-value {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+.score-bar {
+  height: 6px;
+  background: #e8e8e8;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.score-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.score-bar-fill.distance {
+  background: #00897b;
+}
+.score-bar-fill.novelty {
+  background: #c6a700;
+}
+.score-detail {
+  font-size: 0.65em;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* Onward area chips */
+.onward-areas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.area-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.65em;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #eee;
+  color: #666;
+  white-space: nowrap;
+}
+.area-chip.novel {
+  background: #f7f7d6;
+  color: #775f00;
+  font-weight: 500;
+}
+.area-chip.moderate {
+  background: #e8e8e8;
+  color: #555;
+}
+.area-chip.familiar {
+  background: #f0f0f0;
+  color: #aaa;
+}
+.chip-visits {
+  font-size: 0.9em;
+  opacity: 0.7;
+  font-weight: normal;
+}
+.chip-visits::before {
+  content: '\00b7';
+  margin-right: 1px;
+}
+
+/* StopsList onward highlighting */
+.stops-table td.before-origin a,
+.stops-list li.before-origin a {
+  opacity: 0.4;
+}
+.stops-table td.origin,
+.stops-list li.origin {
+  position: relative;
+}
+.stops-table td.origin a,
+.stops-list li.origin a {
+  border-left: 3px solid #00897b;
+  padding-left: 5px;
+  opacity: 1;
+}
+.stops-table td.stop-start.origin a,
+.stops-table td.stop-end.origin a {
+  border-left: 3px solid #00897b;
+  padding-left: 5px;
+}
+
+/* Area separator rows in StopsList */
+.stops-table tr.area-separator td {
+  font-size: 0.65em;
+  color: #888;
+  text-align: center;
+  padding: 3px 8px;
+  border: none;
+  background: transparent;
+  line-height: 1;
+}
+.stops-table tr.area-separator td::before,
+.stops-table tr.area-separator td::after {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 1px;
+  background: #ddd;
+  vertical-align: middle;
+  margin: 0 6px;
+}
+.stops-table tr.area-separator td.novel-area {
+  background: #fdfde6;
+  color: #8a7400;
+}
+.area-sep-name {
+  font-weight: 600;
+  font-size: 1.1em;
+}
+.area-sep-visits {
+  margin-left: 4px;
+  font-weight: normal;
+  opacity: 0.7;
+}
+/* List version */
+.stops-list li.area-separator-li {
+  list-style: none;
+  text-align: center;
+  font-size: 0.65em;
+  color: #888;
+  padding: 2px 0;
+}
+.stops-list li.area-separator-li::before {
+  content: none;
+}
+.stops-list li.area-separator-li.novel-area {
+  background: #fdfde6;
+  color: #8a7400;
+}
+
 .service-tag span.close {
   font-size: 0.95em;
   color: #999;

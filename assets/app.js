@@ -25,6 +25,7 @@ import GeolocateControl from './components/GeolocateControl';
 import BetweenRoutes from './components/BetweenRoutes';
 import ScrollableContainer from './components/ScrollableContainer';
 import StopsList from './components/StopsList.jsx';
+import ServiceInterestingness from './components/ServiceInterestingness';
 
 import stopImagePath from './images/stop.png';
 import stopEndImagePath from './images/stop-end.png';
@@ -122,6 +123,7 @@ const App = () => {
   const [areaInterestingness, setAreaInterestingness] = useState([]);
 
   const prevStopNumber = useRef(null);
+  const serviceInterestRef = useRef(null);
   const servicesList = useRef(null);
   const searchField = useRef(null);
   const searchPopover = useRef(null);
@@ -694,6 +696,27 @@ const App = () => {
 
   const renderRoute = () => {
     const route = getRoute();
+
+    // Capture interestingness context before resets clear prevStopNumber
+    if (
+      route.page === 'service' &&
+      prevStopNumber.current &&
+      stopPopoverData?.services
+    ) {
+      const service = route.value.split('~')[0];
+      const entry = stopPopoverData.services.find(
+        (e) => e.service === service,
+      );
+      serviceInterestRef.current = entry
+        ? {
+            originStop: prevStopNumber.current,
+            originStopName: stopsData[prevStopNumber.current]?.name,
+            ...entry,
+          }
+        : null;
+    } else if (route.page !== 'service') {
+      serviceInterestRef.current = null;
+    }
 
     // Reset everything
     $map.classList.remove('fade-out');
@@ -3030,11 +3053,21 @@ const App = () => {
                   title="Add another bus route"
                 />
               </h2>
+              {serviceInterestRef.current && (
+                <ServiceInterestingness
+                  entry={serviceInterestRef.current}
+                  areaVisitCounts={STORE.areaVisitCounts}
+                  stopsData={stopsData}
+                />
+              )}
               <StopsList
                 routes={servicesData[routeServices[0]].routes}
                 stopsData={stopsData}
                 onStopClick={zoomToStop}
                 onStopClickAgain={_showStopPopover}
+                originStop={serviceInterestRef.current?.originStop}
+                stopAreas={serviceInterestRef.current ? STORE.stopAreas : null}
+                areaVisitCounts={serviceInterestRef.current ? STORE.areaVisitCounts : null}
               />
               <div class="callout info">
                 <span class="legend-opposite" /> Bus stops with opposite direction of services
