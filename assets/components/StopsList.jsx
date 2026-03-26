@@ -115,11 +115,6 @@ export default function StopsList(props) {
   // Onward highlighting data
   const onwardStops = buildOnwardStops(routes, originStop);
   const orderedOnward = buildOrderedOnwardStops(routes, originStop);
-  const originMarkerClass = originStop
-    ? stopsData[originStop]?.left
-      ? 'origin-left'
-      : 'origin-right'
-    : '';
   const areaTransitions = buildAreaTransitions(
     orderedOnward,
     stopAreas,
@@ -216,7 +211,7 @@ export default function StopsList(props) {
                   </span>
                 </li>
               )}
-              <li class={`${posClass}${posClass === 'origin' ? ' ' + originMarkerClass : ''}`}>
+              <li class={posClass}>
                 <StopLink stop={s} />
               </li>
             </Fragment>
@@ -511,7 +506,7 @@ export default function StopsList(props) {
                     <td
                       class={`stop-${
                         s1 === '~~~' ? 'u' : index === 0 ? 'start' : 'end'
-                      } ${loopRoute ? 'loop' : ''} ${s1Pos}${s1Pos === 'origin' ? ' ' + originMarkerClass : ''}`}
+                      } ${loopRoute ? 'loop' : ''} ${s1Pos}`}
                       colspan="3"
                     >
                       {s1 !== '~~~' && <StopLink stop={s1} />}
@@ -523,7 +518,7 @@ export default function StopsList(props) {
                           <td
                             class={`${col1IsEmpty ? '' : 'stop'} ${
                               col1FirstStop ? 'first' : ''
-                            } ${col1LastStop ? 'last' : ''} ${s1Pos}${s1Pos === 'origin' ? ' ' + originMarkerClass : ''}`}
+                            } ${col1LastStop ? 'last' : ''} ${s1Pos}`}
                             rowspan={
                               isOpposite ||
                               index === stopGrid.length - 1 ||
@@ -546,7 +541,7 @@ export default function StopsList(props) {
                           <td
                             class={`${col2IsEmpty ? '' : 'stop'} ${
                               col2FirstStop ? 'first' : ''
-                            } ${col2LastStop ? 'last' : ''} ${s2Pos}${s2Pos === 'origin' ? ' ' + originMarkerClass : ''}`}
+                            } ${col2LastStop ? 'last' : ''} ${s2Pos}`}
                             rowspan={
                               isOpposite ||
                               index === stopGrid.length - 1 ||
