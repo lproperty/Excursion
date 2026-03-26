@@ -1,5 +1,6 @@
 import { h, Fragment } from 'preact';
 import { useRef } from 'preact/hooks';
+import { getVisitCount } from '../utils/interesting';
 
 function rowSpaner(stopGrid, column, stop) {
   if (!stop) return 1;
@@ -29,8 +30,75 @@ function areOpposite(stop1, stop2) {
   return stop1 !== stop2 && stop1 === getOpposite(stop2);
 }
 
+// Build a Set of stops that are "onward" from originStop in the given routes
+function buildOnwardStops(routes, originStop) {
+  if (!originStop) return null;
+  const onward = new Set();
+  for (const route of routes) {
+    if (!route) continue;
+    const idx = route.indexOf(originStop);
+    if (idx >= 0) {
+      for (let i = idx; i < route.length; i++) {
+        onward.add(route[i]);
+      }
+    }
+  }
+  return onward.size > 0 ? onward : null;
+}
+
+// Determine which route contains the origin stop, and return the ordered
+// stops from that route so we can detect area transitions in order.
+function buildOrderedOnwardStops(routes, originStop) {
+  if (!originStop) return [];
+  for (const route of routes) {
+    if (!route) continue;
+    const idx = route.indexOf(originStop);
+    if (idx >= 0) {
+      return route.slice(idx);
+    }
+  }
+  return [];
+}
+
+// Get the stop-position class based on onward set
+function stopPositionClass(stop, originStop, onwardStops) {
+  if (!originStop || !onwardStops) return '';
+  if (stop === originStop) return 'origin';
+  if (onwardStops.has(stop)) return 'onward';
+  return 'before-origin';
+}
+
+// Build area separator data: map of stop number to new area name (at transition points)
+function buildAreaTransitions(orderedOnward, stopAreas, areaVisitCounts) {
+  if (!orderedOnward.length || !stopAreas) return {};
+  const transitions = {};
+  let prevArea = null;
+  for (const stop of orderedOnward) {
+    const area = stopAreas[stop];
+    if (area && area !== prevArea) {
+      if (prevArea !== null) {
+        // This is a transition point
+        transitions[stop] = {
+          area,
+          visitCount: getVisitCount(areaVisitCounts, area),
+        };
+      }
+      prevArea = area;
+    }
+  }
+  return transitions;
+}
+
 export default function StopsList(props) {
-  const { routes, stopsData, onStopClick, onStopClickAgain } = props;
+  const {
+    routes,
+    stopsData,
+    onStopClick,
+    onStopClickAgain,
+    originStop,
+    stopAreas,
+    areaVisitCounts,
+  } = props;
   if (
     !routes ||
     !routes.length ||
@@ -43,6 +111,15 @@ export default function StopsList(props) {
   }
 
   const [route1, route2] = routes;
+
+  // Onward highlighting data
+  const onwardStops = buildOnwardStops(routes, originStop);
+  const orderedOnward = buildOrderedOnwardStops(routes, originStop);
+  const areaTransitions = buildAreaTransitions(
+    orderedOnward,
+    stopAreas,
+    areaVisitCounts,
+  );
 
   if (route1 && route2) {
     if (route1[0] === route2[0]) {
@@ -92,6 +169,24 @@ export default function StopsList(props) {
       </a>
     ) : null;
 
+  const AreaSeparator = ({ stop, colspan }) => {
+    const transition = areaTransitions[stop];
+    if (!transition) return null;
+    const isNovel = transition.visitCount <= 1;
+    return (
+      <tr class="area-separator">
+        <td colspan={colspan || '3'} class={isNovel ? 'novel-area' : ''}>
+          <span class="area-sep-name">{transition.area}</span>
+          <span class="area-sep-visits">
+            {transition.visitCount === 0
+              ? 'unvisited'
+              : `${transition.visitCount} visit${transition.visitCount !== 1 ? 's' : ''}`}
+          </span>
+        </td>
+      </tr>
+    );
+  };
+
   // Only 1 route & not a loop
   if (!route2 && route1FirstStop !== route1LastStop) {
     // Contains duplicates
@@ -102,11 +197,26 @@ export default function StopsList(props) {
     console.warn();
     return (
       <ol class="stops-list">
-        {route1.map((s) => (
-          <li>
-            <StopLink stop={s} />
-          </li>
-        ))}
+        {route1.map((s) => {
+          const posClass = stopPositionClass(s, originStop, onwardStops);
+          return (
+            <Fragment key={s}>
+              {areaTransitions[s] && (
+                <li class={`area-separator-li${areaTransitions[s].visitCount <= 1 ? ' novel-area' : ''}`}>
+                  <span class="area-sep-name">{areaTransitions[s].area}</span>
+                  <span class="area-sep-visits">
+                    {areaTransitions[s].visitCount === 0
+                      ? 'unvisited'
+                      : `${areaTransitions[s].visitCount} visit${areaTransitions[s].visitCount !== 1 ? 's' : ''}`}
+                  </span>
+                </li>
+              )}
+              <li class={posClass}>
+                <StopLink stop={s} />
+              </li>
+            </Fragment>
+          );
+        })}
       </ol>
     );
   } else {
@@ -366,6 +476,13 @@ export default function StopsList(props) {
           ) => {
             const isEdgeRows =
               (index === 0 || index === stopGrid.length - 1) && s1 === s2;
+            // Determine position classes for each stop in this row
+            const s1Pos = s1 && /\d/.test(s1) ? stopPositionClass(s1, originStop, onwardStops) : '';
+            const s2Pos = s2 && /\d/.test(s2) ? stopPositionClass(s2, originStop, onwardStops) : '';
+            // Check area transitions for stops in this row
+            const s1Transition = s1 && areaTransitions[s1];
+            const s2Transition = s2 && areaTransitions[s2];
+            const hasTransition = s1Transition || s2Transition;
             return (
               <>
                 {/*
@@ -378,12 +495,18 @@ export default function StopsList(props) {
                     <td colspan="3"></td>
                   </tr>
                 )}
-                <tr class={isEdgeRows ? 'edge' : ''}>
+                {hasTransition && (
+                  <AreaSeparator
+                    stop={s1Transition ? s1 : s2}
+                    colspan="3"
+                  />
+                )}
+                <tr class={`${isEdgeRows ? 'edge' : ''} ${s1Pos === 'before-origin' && s2Pos === 'before-origin' ? 'before-origin-row' : ''}`}>
                   {isEdgeRows ? (
                     <td
                       class={`stop-${
                         s1 === '~~~' ? 'u' : index === 0 ? 'start' : 'end'
-                      } ${loopRoute ? 'loop' : ''}`}
+                      } ${loopRoute ? 'loop' : ''} ${s1Pos}`}
                       colspan="3"
                     >
                       {s1 !== '~~~' && <StopLink stop={s1} />}
@@ -395,7 +518,7 @@ export default function StopsList(props) {
                           <td
                             class={`${col1IsEmpty ? '' : 'stop'} ${
                               col1FirstStop ? 'first' : ''
-                            } ${col1LastStop ? 'last' : ''}`}
+                            } ${col1LastStop ? 'last' : ''} ${s1Pos}`}
                             rowspan={
                               isOpposite ||
                               index === stopGrid.length - 1 ||
@@ -418,7 +541,7 @@ export default function StopsList(props) {
                           <td
                             class={`${col2IsEmpty ? '' : 'stop'} ${
                               col2FirstStop ? 'first' : ''
-                            } ${col2LastStop ? 'last' : ''}`}
+                            } ${col2LastStop ? 'last' : ''} ${s2Pos}`}
                             rowspan={
                               isOpposite ||
                               index === stopGrid.length - 1 ||
