@@ -124,6 +124,7 @@ const App = () => {
 
   const prevStopNumber = useRef(null);
   const serviceInterestRef = useRef(null);
+  const stopPopoverDataRef = useRef(null);
   const servicesList = useRef(null);
   const searchField = useRef(null);
   const searchPopover = useRef(null);
@@ -284,7 +285,9 @@ const App = () => {
     setShrinkSearch(true);
     prevStopNumber.current = number;
     setShowStopPopover(true);
-    setStopPopoverData({ number, name, services: rankedServices });
+    const popoverData = { number, name, services: rankedServices };
+    setStopPopoverData(popoverData);
+    stopPopoverDataRef.current = popoverData;
 
     requestAnimationFrame(() => {
       if (popoverHeight === stopPopover.current?.offsetHeight) return;
@@ -698,19 +701,22 @@ const App = () => {
     const route = getRoute();
 
     // Capture interestingness context before resets clear prevStopNumber
+    // Use refs (not state) since renderRoute is captured in a stale closure by onhashchange
+    const popoverData = stopPopoverDataRef.current;
     if (
       route.page === 'service' &&
       prevStopNumber.current &&
-      stopPopoverData?.services
+      popoverData?.services
     ) {
       const service = route.value.split('~')[0];
-      const entry = stopPopoverData.services.find(
+      const entry = popoverData.services.find(
         (e) => e.service === service,
       );
       serviceInterestRef.current = entry
         ? {
             originStop: prevStopNumber.current,
-            originStopName: stopsData[prevStopNumber.current]?.name,
+            originStopName:
+              stopsData[prevStopNumber.current]?.name || '',
             ...entry,
           }
         : null;
