@@ -1,7 +1,7 @@
 # Excursion — Technical Notes
 
 ## Project
-Singapore Bus Routes Explorer — interactive map.
+An interactive Singapore bus routes explorer, built for spontaneous bus-surfing adventures.
 Multi-entry-point build: main app + 1 mini-site (bus-arrival).
 
 ## Commands
