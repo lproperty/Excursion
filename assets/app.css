@@ -1164,18 +1164,10 @@ a.service-tag:hover {
 .stops-list li.before-origin a {
   opacity: 0.4;
 }
-.stops-table td.origin,
-.stops-list li.origin {
-  position: relative;
-}
 .stops-table td.origin a,
 .stops-list li.origin a {
   opacity: 1;
-  box-shadow: inset 3px 0 0 #00897b;
-}
-.stops-table td.origin.origin-right a,
-.stops-list li.origin.origin-right a {
-  box-shadow: inset -3px 0 0 #00897b;
+  background-color: #00897b22;
 }
 
 /* Area separator rows in StopsList */
