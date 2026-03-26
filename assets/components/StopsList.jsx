@@ -148,7 +148,7 @@ export default function StopsList(props) {
 
   const lastStop = useRef();
 
-  const StopLink = ({ stop }) =>
+  const StopLink = ({ stop, isOrigin }) =>
     stop ? (
       <a
         href={`#/stops/${stop}`}
@@ -164,6 +164,7 @@ export default function StopsList(props) {
         }}
       >
         <b class="mini-stop-tag">{stop}</b>
+        {isOrigin && <span class="origin-chip">from here</span>}
         <br />
         {stopsData[stop].name}
       </a>
@@ -212,7 +213,7 @@ export default function StopsList(props) {
                 </li>
               )}
               <li class={posClass}>
-                <StopLink stop={s} />
+                <StopLink stop={s} isOrigin={posClass === 'origin'} />
               </li>
             </Fragment>
           );
@@ -509,7 +510,7 @@ export default function StopsList(props) {
                       } ${loopRoute ? 'loop' : ''} ${s1Pos}`}
                       colspan="3"
                     >
-                      {s1 !== '~~~' && <StopLink stop={s1} />}
+                      {s1 !== '~~~' && <StopLink stop={s1} isOrigin={s1Pos === 'origin'} />}
                     </td>
                   ) : (
                     <>
@@ -527,7 +528,7 @@ export default function StopsList(props) {
                                 : rowSpaner(stopGrid, 0, s1)
                             }
                           >
-                            <StopLink stop={s1} />
+                            <StopLink stop={s1} isOrigin={s1Pos === 'origin'} />
                           </td>
                         )
                       ) : (
@@ -550,7 +551,7 @@ export default function StopsList(props) {
                                 : rowSpaner(stopGrid, 1, s2)
                             }
                           >
-                            <StopLink stop={s2} />
+                            <StopLink stop={s2} isOrigin={s2Pos === 'origin'} />
                           </td>
                         )
                       ) : (

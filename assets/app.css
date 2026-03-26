@@ -1167,7 +1167,19 @@ a.service-tag:hover {
 .stops-table td.origin a,
 .stops-list li.origin a {
   opacity: 1;
-  background-color: #00897b22;
+  background-color: #00897b18;
+}
+.origin-chip {
+  display: inline-block;
+  margin-left: 5px;
+  padding: 1px 5px;
+  font-size: 0.7em;
+  font-weight: 600;
+  color: #00897b;
+  border: 1px solid #00897b;
+  border-radius: 3px;
+  vertical-align: middle;
+  line-height: 1.4;
 }
 
 /* Area separator rows in StopsList */
