@@ -22,6 +22,7 @@ import usePrevious from './utils/usePrevious';
 
 import BusServicesArrival from './components/BusServicesArrival';
 import GeolocateControl from './components/GeolocateControl';
+import HomeBusPills from './components/HomeBusPills';
 import BetweenRoutes from './components/BetweenRoutes';
 import ScrollableContainer from './components/ScrollableContainer';
 import StopsList from './components/StopsList.jsx';
@@ -54,6 +55,8 @@ const supportsTouch =
   navigator.MaxTouchPoints > 0 ||
   navigator.msMaxTouchPoints > 0;
 const ruler = new CheapRuler(1.3);
+
+let homeBusPills = null;
 
 let rafST;
 const rafScrollTop = () => {
@@ -1447,10 +1450,10 @@ const App = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          map.flyTo({
-            center: [pos.coords.longitude, pos.coords.latitude],
-            zoom: 16,
-            duration: 1500,
+          const userLngLat = [pos.coords.longitude, pos.coords.latitude];
+          map.flyTo({ center: userLngLat, zoom: 16, duration: 1500 });
+          map.once('moveend', () => {
+            if (homeBusPills) homeBusPills.show(userLngLat);
           });
         },
         () => {}, // silently ignore if denied/unavailable
@@ -1636,6 +1639,7 @@ const App = () => {
     });
 
     setMapLoaded(true);
+    homeBusPills = new HomeBusPills({ map, stopsDataArr, servicesData, ruler });
   };
 
   useEffect(() => {

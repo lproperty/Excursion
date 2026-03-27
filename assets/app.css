@@ -1365,15 +1365,15 @@ a.service-tag:hover {
 
 .popover-close {
   position: absolute;
-  top: 7px;
-  right: 7px;
-  height: 24px;
-  width: 24px;
+  top: 5px;
+  right: 5px;
+  height: 36px;
+  width: 36px;
   display: inline-block;
   font-family: Arial, sans-serif;
-  line-height: 24px;
+  line-height: 36px;
   text-align: center;
-  font-size: 18px;
+  font-size: 20px;
   border-radius: 123123px;
   background-color: rgba(0, 0, 0, 0.1);
   color: rgba(0, 0, 0, 0.45);
@@ -1928,5 +1928,57 @@ input[type='checkbox']:active:after,
 input[type='checkbox']:checked:after {
   opacity: 1;
   transform: rotate(45deg);
+}
+
+/* Home bus pills — floating arrival bubbles anchored to nearby stops */
+.home-bus-pill {
+  background: #fff;
+  border-radius: 16px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.3;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  border-left: 3px solid #007aff;
+  animation: pill-fade-in 0.25s ease-out;
+}
+.home-bus-pill .pill-entry {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: #333;
+}
+.home-bus-pill .pill-entry b {
+  color: #00454d;
+  font-weight: 700;
+}
+.home-bus-pill .pill-entry + .pill-entry::before {
+  content: '·';
+  color: #ccc;
+  margin-right: 3px;
+}
+.home-bus-pill .pill-time {
+  color: #888;
+  font-variant-numeric: tabular-nums;
+}
+.home-bus-pill .pill-more {
+  color: #aaa;
+  font-size: 11px;
+}
+@keyframes pill-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
