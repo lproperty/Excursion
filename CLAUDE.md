@@ -35,6 +35,8 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 | `assets/utils/specialID.js` | Stop ID encoding/decoding |
 | `assets/utils/interesting.js` | Interestingness ranking — `rankStopServicesByInterestingness()`, `computeAreaInterestingness()` |
 | `assets/utils/areas.js` | `getServiceAreas()` — planning areas a service passes through |
+| `assets/utils/homewardStops.js` | `HOME_STOP` constant + `findNearbyHomewardStops()` — finds stops within 500m with services heading to home stop |
+| `assets/components/HomeBusPills.js` | Manages floating MapLibre DOM markers showing arrival times for homeward services; triggered by `visibilitychange` |
 | `service-worker.js` | Workbox cache strategies |
 
 ## Data / APIs
@@ -121,6 +123,31 @@ Each result object: `{ service, routeIndex, terminalStop, onwardAreas, onwardAre
 - Area search results appear at the top of search results above services and stops
 - Scores can never be negative (range 0–100); `1 / (visitCount + 1)` always positive
 
+## Home Bus Pills
+
+On every PWA open (via `document.visibilitychange`), the app automatically shows floating arrival-time bubble pills on nearby bus stops that have services heading to the configured home stop.
+
+### Trigger & lifecycle
+- `visibilitychange` → `visible`: calls `navigator.geolocation.getCurrentPosition` (cached up to 30s), then `HomeBusPills.show(userLngLat)`
+- `visibilitychange` → `hidden`: calls `HomeBusPills.hide()` so pills are fresh on next open
+- `HomeBusPills.show()` calls `hide()` first to clear any existing pills before drawing new ones
+
+### Stop filtering (`assets/utils/homewardStops.js`)
+`findNearbyHomewardStops(userLngLat, stopsDataArr, servicesData, ruler, options?)`:
+1. Finds all stops within 500m (via `ruler.distance()`)
+2. Sorts by distance, caps at 8 stops
+3. For each stop's `routes` entries (e.g. `"10-0"`), checks `servicesData[service].routes[routeIndex]` — uses `indexOf(homeStop, nearbyIdx + 1)` to find 70261 **after** the nearby stop in the route, ensuring the bus hasn't passed it yet
+4. Deduplicates by service number; returns only stops with ≥1 qualifying service
+
+Home stop is hardcoded as `HOME_STOP = '70261'` in `homewardStops.js`.
+
+### Pill rendering (`assets/components/HomeBusPills.js`)
+- Each qualifying stop gets a `maplibregl.Marker` with a DOM element (`.home-bus-pill`), anchored `'bottom'` with 8px offset above the stop icon
+- Arrival times fetched from `https://arrivelah2.busrouter.sg/?id={stopNumber}`, polled every 15s via `setRafInterval`
+- After each fetch, pill entries are **sorted by `duration_ms` ascending** (soonest first) and the pill DOM is rebuilt
+- Pills are **zoom-dependent**: visible at zoom ≥ 15 (same threshold as stop name labels), hidden below via a `map.on('zoom', ...)` listener
+- `pointer-events: none` — pills don't block tap-through to the map
+
 ## Deployment
 
 Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
@@ -133,7 +160,7 @@ Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
 - **State**: Preact hooks for component state; global `STORE` object in `app.js` for shared state
 - **Geo**: use `cheap-ruler` for distance/bearing, `turf` only for polygon ops
 - **Caching**: `fetchCache.js` for API calls; Workbox for asset caching
-- **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible). Silently falls back to default Singapore bounds if denied/unavailable.
+- **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible). Silently falls back to default Singapore bounds if denied/unavailable. Also called on each `visibilitychange → visible` to refresh home bus pills.
 
 ## Config Files
 | File | Purpose |

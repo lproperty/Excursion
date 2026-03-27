@@ -14,6 +14,7 @@ Live at: **https://lproperty.github.io/Excursion/**
 - Search for bus services, stops, or planning areas
 - Click a planning area to zoom the map to it
 - Zooms to your current location on first load
+- **Home bus pills** — on PWA open, nearby stops automatically show floating arrival-time bubbles for buses heading to a configured home stop, sorted by soonest arrival
 - Origin stop clearly marked when viewing a route from a stop
 - Works as a PWA (add to home screen on iPhone/Android)
 
