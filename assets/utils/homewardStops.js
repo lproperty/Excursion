@@ -50,6 +50,18 @@ export function findNearbyHomewardStops(
       const homeIdx = routeStops.indexOf(homeStop, nearbyIdx + 1);
       if (homeIdx === -1) continue;
 
+      // For loop routes (first stop === last stop), skip if the bus takes
+      // the long way around the loop to reach home
+      const isLoop =
+        routeStops.length > 1 &&
+        routeStops[0] === routeStops[routeStops.length - 1];
+      if (isLoop) {
+        const forwardHops = homeIdx - nearbyIdx;
+        const totalStops = routeStops.length - 1; // exclude duplicated terminal
+        const backwardHops = totalStops - forwardHops;
+        if (forwardHops > backwardHops) continue;
+      }
+
       // Collect terminal stops (endpoints) for this service across all route directions
       const serviceRoutes = servicesData[service]?.routes || [];
       const terminals = new Set();

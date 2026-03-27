@@ -137,7 +137,9 @@ On every PWA open (via `document.visibilitychange`), the app automatically shows
 1. Finds all stops within 500m (via `ruler.distance()`)
 2. Sorts by distance, caps at 8 stops
 3. For each stop's `routes` entries (e.g. `"10-0"`), checks `servicesData[service].routes[routeIndex]` — uses `indexOf(homeStop, nearbyIdx + 1)` to find 70261 **after** the nearby stop in the route, ensuring the bus hasn't passed it yet
-4. Deduplicates by service number; returns only stops with ≥1 qualifying service
+4. **Loop route check**: if `route[0] === route[last]`, compares forward hops (nearby → home) vs backward hops (the other arc). Skips if the forward direction is the long way around the loop
+5. **Terminal check**: collects first/last stops across all directions; skips if any terminal appears between the nearby stop and home (catches non-loop services that reach an endpoint before home)
+6. Deduplicates by service number; returns only stops with ≥1 qualifying service
 
 Home stop is hardcoded as `HOME_STOP = '70261'` in `homewardStops.js`.
 
