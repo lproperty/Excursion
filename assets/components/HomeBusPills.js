@@ -3,7 +3,7 @@ import { setRafInterval, clearRafInterval } from '../utils/rafInterval';
 import { findNearbyHomewardStops } from '../utils/homewardStops';
 
 const ARRIVAL_URL = 'https://arrivelah2.busrouter.sg/?id=';
-const POLL_INTERVAL = 20_000;
+const POLL_INTERVAL = 15_000;
 const ZOOM_THRESHOLD = 15;
 const MAX_SERVICES_PER_PILL = 3;
 
