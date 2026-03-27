@@ -14,18 +14,32 @@ function formatArrival(ms) {
   return mins + 'm';
 }
 
-function buildPillElement(homewardServices) {
+function buildPillElement() {
   const el = document.createElement('div');
   el.className = 'home-bus-pill';
+  return el;
+}
 
-  const shown = homewardServices.slice(0, MAX_SERVICES_PER_PILL);
-  const overflow = homewardServices.length - shown.length;
+// Render (or re-render) pill content sorted by arrival time.
+// entries: [{ service, ms }] where ms may be null (unknown yet)
+function renderPillContent(el, entries) {
+  // Sort: known times ascending, unknowns last
+  const sorted = [...entries].sort((a, b) => {
+    if (a.ms == null && b.ms == null) return 0;
+    if (a.ms == null) return 1;
+    if (b.ms == null) return -1;
+    return a.ms - b.ms;
+  });
 
-  for (const { service } of shown) {
+  const shown = sorted.slice(0, MAX_SERVICES_PER_PILL);
+  const overflow = sorted.length - shown.length;
+
+  el.innerHTML = '';
+  for (const { service, ms } of shown) {
     const entry = document.createElement('span');
     entry.className = 'pill-entry';
     entry.dataset.service = service;
-    entry.innerHTML = `<b>${service}</b> <span class="pill-time">...</span>`;
+    entry.innerHTML = `<b>${service}</b> <span class="pill-time">${formatArrival(ms)}</span>`;
     el.appendChild(entry);
   }
 
@@ -35,8 +49,6 @@ function buildPillElement(homewardServices) {
     more.textContent = `+${overflow}`;
     el.appendChild(more);
   }
-
-  return el;
 }
 
 export default class HomeBusPills {
@@ -64,7 +76,8 @@ export default class HomeBusPills {
     const currentZoom = this._map.getZoom();
 
     for (const { stop, homewardServices } of qualifiedStops) {
-      const element = buildPillElement(homewardServices);
+      const element = buildPillElement();
+      renderPillContent(element, homewardServices.map(({ service }) => ({ service, ms: null })));
       if (currentZoom < ZOOM_THRESHOLD) {
         element.style.display = 'none';
       }
@@ -133,15 +146,12 @@ export default class HomeBusPills {
                 }
               }
             }
-            // Update each pill entry
-            const entries = element.querySelectorAll('.pill-entry');
-            for (const entry of entries) {
-              const svcNo = entry.dataset.service;
-              const timeEl = entry.querySelector('.pill-time');
-              if (timeEl) {
-                timeEl.textContent = formatArrival(arrivalMap[svcNo]);
-              }
-            }
+            // Rebuild pill sorted by arrival time (soonest first)
+            const entries = homewardServices.map(({ service }) => ({
+              service,
+              ms: arrivalMap[service] ?? null,
+            }));
+            renderPillContent(element, entries);
           })
           .catch(() => {}), // Silently ignore errors per stop
     );
