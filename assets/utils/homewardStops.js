@@ -44,8 +44,11 @@ export function findNearbyHomewardStops(
       const routeStops = servicesData[service]?.routes?.[routeIndex];
       if (!routeStops) continue;
       const nearbyIdx = routeStops.indexOf(stop.number);
-      const homeIdx = routeStops.indexOf(homeStop);
-      if (nearbyIdx !== -1 && homeIdx !== -1 && nearbyIdx < homeIdx) {
+      if (nearbyIdx === -1) continue;
+      // Search for homeStop only in the segment after the nearby stop,
+      // so we only match occurrences the bus hasn't passed yet
+      const homeIdx = routeStops.indexOf(homeStop, nearbyIdx + 1);
+      if (homeIdx !== -1) {
         // Deduplicate: same service number may appear via both route directions
         if (!homewardServices.find((s) => s.service === service)) {
           homewardServices.push({ service, routeIndex });
