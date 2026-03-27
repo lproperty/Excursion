@@ -5,19 +5,29 @@ export const HOME_STOP = '70261';
  *
  * @param {[number, number]} userLngLat - [lng, lat]
  * @param {Array} stopsDataArr - all stops
+ * @param {Object} stopsData - keyed by stop number (for coordinate lookups)
  * @param {Object} servicesData - keyed by service number
  * @param {CheapRuler} ruler - pre-instantiated cheap-ruler
- * @param {{ radiusKm?: number, maxStops?: number, homeStop?: string }} options
+ * @param {{ radiusKm?: number, maxStops?: number, homeStop?: string, maxDeviationKm?: number }} options
  * @returns {Array<{ stop: Object, homewardServices: Array<{ service: string, routeIndex: number }> }>}
  */
 export function findNearbyHomewardStops(
   userLngLat,
   stopsDataArr,
+  stopsData,
   servicesData,
   ruler,
   options = {},
 ) {
-  const { radiusKm = 0.5, maxStops = 8, homeStop = HOME_STOP } = options;
+  const {
+    radiusKm = 0.5,
+    maxStops = 8,
+    homeStop = HOME_STOP,
+    maxDeviationKm = 2,
+  } = options;
+
+  // Look up home stop coordinates once for detour checks
+  const homeCoords = stopsData[homeStop]?.coordinates;
 
   // 1. Filter stops within radius, capture distance
   const nearby = [];
@@ -50,16 +60,18 @@ export function findNearbyHomewardStops(
       const homeIdx = routeStops.indexOf(homeStop, nearbyIdx + 1);
       if (homeIdx === -1) continue;
 
-      // For loop routes (first stop === last stop), skip if the bus takes
-      // the long way around the loop to reach home
-      const isLoop =
-        routeStops.length > 1 &&
-        routeStops[0] === routeStops[routeStops.length - 1];
-      if (isLoop) {
-        const forwardHops = homeIdx - nearbyIdx;
-        const totalStops = routeStops.length - 1; // exclude duplicated terminal
-        const backwardHops = totalStops - forwardHops;
-        if (forwardHops > backwardHops) continue;
+      // Skip if the route detours far from home before arriving —
+      // catches loop routes going the long way and lollipop-shaped routes
+      if (homeCoords) {
+        let detours = false;
+        for (let i = nearbyIdx + 1; i < homeIdx; i++) {
+          const coords = stopsData[routeStops[i]]?.coordinates;
+          if (coords && ruler.distance(coords, homeCoords) > maxDeviationKm) {
+            detours = true;
+            break;
+          }
+        }
+        if (detours) continue;
       }
 
       // Collect terminal stops (endpoints) for this service across all route directions

@@ -52,9 +52,10 @@ function renderPillContent(el, entries) {
 }
 
 export default class HomeBusPills {
-  constructor({ map, stopsDataArr, servicesData, ruler }) {
+  constructor({ map, stopsDataArr, stopsData, servicesData, ruler }) {
     this._map = map;
     this._stopsDataArr = stopsDataArr;
+    this._stopsData = stopsData;
     this._servicesData = servicesData;
     this._ruler = ruler;
     this._markers = new Map(); // stopNumber → { marker, element, homewardServices }
@@ -70,6 +71,7 @@ export default class HomeBusPills {
     const qualifiedStops = findNearbyHomewardStops(
       userLngLat,
       this._stopsDataArr,
+      this._stopsData,
       this._servicesData,
       this._ruler,
     );

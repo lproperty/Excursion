@@ -1660,7 +1660,7 @@ const App = () => {
     });
 
     setMapLoaded(true);
-    homeBusPills = new HomeBusPills({ map, stopsDataArr, servicesData, ruler });
+    homeBusPills = new HomeBusPills({ map, stopsDataArr, stopsData, servicesData, ruler });
   };
 
   useEffect(() => {
