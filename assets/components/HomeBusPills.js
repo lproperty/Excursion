@@ -64,6 +64,9 @@ export default class HomeBusPills {
   }
 
   show(userLngLat) {
+    // Clear any existing pills before showing fresh ones
+    this.hide();
+
     const qualifiedStops = findNearbyHomewardStops(
       userLngLat,
       this._stopsDataArr,

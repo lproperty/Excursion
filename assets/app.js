@@ -1450,16 +1450,37 @@ const App = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          const userLngLat = [pos.coords.longitude, pos.coords.latitude];
-          map.flyTo({ center: userLngLat, zoom: 16, duration: 1500 });
-          map.once('moveend', () => {
-            if (homeBusPills) homeBusPills.show(userLngLat);
+          map.flyTo({
+            center: [pos.coords.longitude, pos.coords.latitude],
+            zoom: 16,
+            duration: 1500,
           });
         },
         () => {}, // silently ignore if denied/unavailable
         { timeout: 5000 },
       );
     }
+
+    // Show home bus pills whenever the PWA comes to the foreground
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        homeBusPills?.hide();
+        return;
+      }
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (homeBusPills) {
+            homeBusPills.show([pos.coords.longitude, pos.coords.latitude]);
+          }
+        },
+        () => {},
+        { timeout: 5000, maximumAge: 30000 },
+      );
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    // Also trigger immediately on load if page is already visible
+    if (document.visibilityState === 'visible') onVisibilityChange();
 
     await new Promise((resolve, reject) => {
       map.once('styledata', () => {
