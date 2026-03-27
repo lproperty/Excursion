@@ -48,11 +48,32 @@ export function findNearbyHomewardStops(
       // Search for homeStop only in the segment after the nearby stop,
       // so we only match occurrences the bus hasn't passed yet
       const homeIdx = routeStops.indexOf(homeStop, nearbyIdx + 1);
-      if (homeIdx !== -1) {
-        // Deduplicate: same service number may appear via both route directions
-        if (!homewardServices.find((s) => s.service === service)) {
-          homewardServices.push({ service, routeIndex });
+      if (homeIdx === -1) continue;
+
+      // Collect terminal stops (endpoints) for this service across all route directions
+      const serviceRoutes = servicesData[service]?.routes || [];
+      const terminals = new Set();
+      for (const r of serviceRoutes) {
+        if (r.length > 0) {
+          terminals.add(r[0]);
+          terminals.add(r[r.length - 1]);
         }
+      }
+
+      // Skip if the bus reaches any terminal between the nearby stop and home —
+      // that means it travels too far (to an endpoint) before getting home
+      let passesTerminal = false;
+      for (let i = nearbyIdx + 1; i < homeIdx; i++) {
+        if (terminals.has(routeStops[i])) {
+          passesTerminal = true;
+          break;
+        }
+      }
+      if (passesTerminal) continue;
+
+      // Deduplicate: same service number may appear via both route directions
+      if (!homewardServices.find((s) => s.service === service)) {
+        homewardServices.push({ service, routeIndex });
       }
     }
     if (homewardServices.length > 0) {
