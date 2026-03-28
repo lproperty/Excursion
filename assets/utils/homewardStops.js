@@ -1,14 +1,15 @@
-export const HOME_STOP = '70261';
+export const HOME_STOPS = ['70261', '03019'];
+export const HOME_STOP = HOME_STOPS[0];
 
 /**
- * Find nearby stops that have at least one bus service heading toward HOME_STOP.
+ * Find nearby stops that have at least one bus service heading toward any of HOME_STOPS.
  *
  * @param {[number, number]} userLngLat - [lng, lat]
  * @param {Array} stopsDataArr - all stops
  * @param {Object} stopsData - keyed by stop number (for coordinate lookups)
  * @param {Object} servicesData - keyed by service number
  * @param {CheapRuler} ruler - pre-instantiated cheap-ruler
- * @param {{ radiusKm?: number, maxStops?: number, homeStop?: string, maxDeviationKm?: number }} options
+ * @param {{ radiusKm?: number, maxStops?: number, homeStops?: string[], maxDeviationKm?: number }} options
  * @returns {Array<{ stop: Object, homewardServices: Array<{ service: string, routeIndex: number }> }>}
  */
 export function findNearbyHomewardStops(
@@ -22,12 +23,9 @@ export function findNearbyHomewardStops(
   const {
     radiusKm = 0.5,
     maxStops = 8,
-    homeStop = HOME_STOP,
+    homeStops = HOME_STOPS,
     maxDeviationKm = 2,
   } = options;
-
-  // Look up home stop coordinates once for detour checks
-  const homeCoords = stopsData[homeStop]?.coordinates;
 
   // 1. Filter stops within radius, capture distance
   const nearby = [];
@@ -55,10 +53,20 @@ export function findNearbyHomewardStops(
       if (!routeStops) continue;
       const nearbyIdx = routeStops.indexOf(stop.number);
       if (nearbyIdx === -1) continue;
-      // Search for homeStop only in the segment after the nearby stop,
+      // Search for any home stop in the segment after the nearby stop,
       // so we only match occurrences the bus hasn't passed yet
-      const homeIdx = routeStops.indexOf(homeStop, nearbyIdx + 1);
+      let homeIdx = -1;
+      let matchedHomeStop = null;
+      for (const hs of homeStops) {
+        const idx = routeStops.indexOf(hs, nearbyIdx + 1);
+        if (idx !== -1 && (homeIdx === -1 || idx < homeIdx)) {
+          homeIdx = idx;
+          matchedHomeStop = hs;
+        }
+      }
       if (homeIdx === -1) continue;
+
+      const homeCoords = stopsData[matchedHomeStop]?.coordinates;
 
       // Skip if the route detours far from home before arriving —
       // catches loop routes going the long way and lollipop-shaped routes
