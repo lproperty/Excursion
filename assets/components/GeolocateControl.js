@@ -130,12 +130,12 @@ export default class GeolocateControl {
   };
   _setHeading = (e) => {
     if (!this._watching) return;
-    if (!e || e.alpha === null) return;
-    this._compass.hidden = false;
+    if (!e) return;
     const heading =
-      e.compassHeading ||
-      e.webkitCompassHeading ||
-      compassHeading(e.alpha, e.beta, e.gamma);
+      e.webkitCompassHeading ??
+      (e.alpha !== null ? compassHeading(e.alpha, e.beta, e.gamma) : null);
+    if (heading === null) return;
+    this._compass.hidden = false;
     this._compass.style.transform = `rotate(${Math.round(heading)}deg)`;
   };
   _clickButton = (e, locking = true) => {
@@ -221,9 +221,11 @@ export default class GeolocateControl {
       if (window.DeviceOrientationEvent) {
         // https://developers.google.com/web/updates/2016/03/device-orientation-changes
         // https://stackoverflow.com/a/47870694/20838
-        if (location.hostname === 'localhost') {
-          // Stupid bug with Chrome
-          // `ondeviceorientationabsolute` is true but always return empty values
+        // iOS Safari supports webkitCompassHeading via 'deviceorientation' only.
+        // 'deviceorientationabsolute' may appear in window but never fire on
+        // iOS or localhost Chrome, so only use it on non-Apple browsers.
+        const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
+        if (location.hostname === 'localhost' || isApple) {
           deviceorientation = 'deviceorientation';
         } else {
           deviceorientation =
