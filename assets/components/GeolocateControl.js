@@ -51,7 +51,6 @@ export default class GeolocateControl {
     dot.className = 'user-location';
     this._dot = new maplibregl.Marker({
       element: dot,
-      rotationAlignment: 'map',
     });
     const dotElement = this._dot.getElement();
     this._compass = dotElement.querySelector('.user-location-compass');
@@ -130,7 +129,6 @@ export default class GeolocateControl {
     }
   };
   _setHeading = (e) => {
-    console.log('_setHeading', e);
     if (!this._watching) return;
     if (!e || e.alpha === null) return;
     this._compass.hidden = false;
@@ -138,11 +136,7 @@ export default class GeolocateControl {
       e.compassHeading ||
       e.webkitCompassHeading ||
       compassHeading(e.alpha, e.beta, e.gamma);
-    // -60deg rotateX is for *tilting* the compass "box" to look like a trapezoid
-    // this._compass.style.transform = `rotate(${Math.round(
-    //   heading,
-    // )}deg) scale(4)`;
-    this._dot.setRotation(heading);
+    this._compass.style.transform = `rotate(${Math.round(heading)}deg)`;
   };
   _clickButton = (e, locking = true) => {
     if (e) e.preventDefault();
