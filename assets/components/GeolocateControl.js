@@ -154,66 +154,69 @@ export default class GeolocateControl {
       this._locking = locking;
       let deviceorientation;
 
-      this._watching = navigator.geolocation.watchPosition(
-        (position) => {
-          console.log({ position });
-          const { latitude, longitude } = position.coords;
+      const startWatching = () => {
+        this._watching = navigator.geolocation.watchPosition(
+          (position) => {
+            console.log({ position });
+            const { latitude, longitude } = position.coords;
 
-          if (`${[latitude, longitude]}` === `${this._currentLocation}`) return; // No idea why
+            if (`${[latitude, longitude]}` === `${this._currentLocation}`)
+              return; // No idea why
 
-          // console.log({ latitude, longitude });
-          this._currentLocation = [longitude, latitude];
-          this._dot.setLngLat(this._currentLocation);
+            // console.log({ latitude, longitude });
+            this._currentLocation = [longitude, latitude];
+            this._dot.setLngLat(this._currentLocation);
 
-          if (!this._dot._addedToMap) {
-            this._dot.addTo(this._map);
-            this._dot._addedToMap = true;
-          }
+            if (!this._dot._addedToMap) {
+              this._dot.addTo(this._map);
+              this._dot._addedToMap = true;
+            }
 
-          if (this._locking) {
-            this._updateButtonState('active');
-            this._flyToCurrentLocation();
-          } else {
-            this._updateButtonState(null);
-          }
+            if (this._locking) {
+              this._updateButtonState('active');
+              this._flyToCurrentLocation();
+            } else {
+              this._updateButtonState(null);
+            }
 
-          if (this._buttonClicked) {
-            // Differentiate between initiated from button click or watchPosition subsequent runs
+            if (this._buttonClicked) {
+              // Differentiate between initiated from button click or watchPosition subsequent runs
+              this._buttonClicked = false;
+              onClick(this._currentLocation);
+            }
+            this._watching = true;
+          },
+          (e) => {
+            this._locking = false;
+            this._watching = false;
             this._buttonClicked = false;
-            onClick(this._currentLocation);
-          }
-          this._watching = true;
-        },
-        (e) => {
-          this._locking = false;
-          this._watching = false;
-          this._buttonClicked = false;
 
-          this._updateButtonState(null);
-          navigator.geolocation.clearWatch(this._watching);
-          if (deviceorientation) {
-            window.removeEventListener(deviceorientation, this._setHeading);
-          }
+            this._updateButtonState(null);
+            navigator.geolocation.clearWatch(this._watching);
+            if (deviceorientation) {
+              window.removeEventListener(deviceorientation, this._setHeading);
+            }
 
-          console.warn(e);
-          this._retries++;
-          if (e.code === 1) {
-            // PERMISSION_DENIED
-            alert(
-              'Looks like location tracking is blocked on your browser. Please enable it in the settings to use this feature.',
-            );
-          } else {
-            if (this._retries > 3) return;
-            // Retry again
-            this._clickButton();
-          }
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 60 * 1000, // 1min
-          maximumAge: 1000, // 1s
-        },
-      );
+            console.warn(e);
+            this._retries++;
+            if (e.code === 1) {
+              // PERMISSION_DENIED
+              alert(
+                'Looks like location tracking is blocked on your browser. Please enable it in the settings to use this feature.',
+              );
+            } else {
+              if (this._retries > 3) return;
+              // Retry again
+              this._clickButton();
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 60 * 1000, // 1min
+            maximumAge: 1000, // 1s
+          },
+        );
+      };
 
       if (window.DeviceOrientationEvent) {
         // https://developers.google.com/web/updates/2016/03/device-orientation-changes
@@ -230,19 +233,31 @@ export default class GeolocateControl {
         }
         window.addEventListener(deviceorientation, this._setHeading, false);
 
-        if (!this._orientationGranted) {
-          if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-              .then((permissionState) => {
-                if (permissionState === 'granted') {
-                  this._orientationGranted = true;
-                }
-              })
-              .catch((e) => {
-                console.warn('DeviceOrientation permission error:', e);
-              });
-          }
+        // On iOS, requestPermission() must be called directly from a user
+        // gesture. Request orientation permission FIRST, then start geolocation
+        // — otherwise watchPosition() consumes the gesture context and the
+        // orientation permission silently fails.
+        if (
+          !this._orientationGranted &&
+          typeof DeviceOrientationEvent.requestPermission === 'function'
+        ) {
+          DeviceOrientationEvent.requestPermission()
+            .then((permissionState) => {
+              if (permissionState === 'granted') {
+                this._orientationGranted = true;
+              }
+            })
+            .catch((e) => {
+              console.warn('DeviceOrientation permission error:', e);
+            })
+            .finally(() => {
+              startWatching();
+            });
+        } else {
+          startWatching();
         }
+      } else {
+        startWatching();
       }
     }
   };
