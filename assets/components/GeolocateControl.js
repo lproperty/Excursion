@@ -233,13 +233,14 @@ export default class GeolocateControl {
         if (!this._orientationGranted) {
           if (typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
-              .then(function (permissionState) {
+              .then((permissionState) => {
                 if (permissionState === 'granted') {
                   this._orientationGranted = true;
-                  console.log('granted');
                 }
               })
-              .catch((e) => {});
+              .catch((e) => {
+                console.warn('DeviceOrientation permission error:', e);
+              });
           }
         }
       }
