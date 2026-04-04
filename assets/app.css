@@ -1649,12 +1649,24 @@ a.service-tag:hover {
 .user-location-compass {
   z-index: 0;
   position: absolute;
-  top: 0;
-  width: 20px;
-  height: 20px;
-  background: radial-gradient(closest-side, #007affdd, #007aff00);
-  transform: scale(4);
-  clip-path: polygon(50% 50%, 30% 0, 70% 0);
+  top: 50%;
+  left: 50%;
+  width: 68px;
+  height: 68px;
+  margin-top: -34px;
+  margin-left: -34px;
+  background: conic-gradient(
+    from -30deg,
+    transparent 0deg,
+    #4a90d9aa 15deg,
+    #4a90d9cc 30deg,
+    #4a90d9cc 30deg,
+    #4a90d9aa 45deg,
+    transparent 60deg
+  );
+  mask-image: radial-gradient(circle, transparent 12px, black 14px, transparent 34px);
+  -webkit-mask-image: radial-gradient(circle, transparent 12px, black 14px, transparent 34px);
+  border-radius: 50%;
 }
 /* .user-location-accuracy {
   width: 20px;
