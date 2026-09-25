@@ -16,7 +16,7 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 - **Preact** (not React) — React compat alias in package.json; JSX pragma is `h` (see `.babelrc`)
 - **MapLibre GL** — vector map rendering
 - **Parcel 2** — bundler (not Vite/Webpack); custom transforms in `.parcelrc`
-- **Workbox** — service worker with cache strategies (`service-worker.js`)
+- **Workbox** — service worker with cache strategies (`service-worker.js`); page loads fall back to the cached page after 3s on a weak signal
 - **Fuse.js** — client-side fuzzy search
 - **cheap-ruler** — fast geo calculations (preferred over full turf.js)
 - All UI text is hardcoded English — i18n/localization has been removed
@@ -30,12 +30,12 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 | `assets/components/` | Preact components (JSX) |
 | `assets/components/AreaInterestingness.jsx` | Renders ranked area list (visit count + novelty score pills) |
 | `assets/utils/bus.js` | Service sort (alphanumeric), time formatting |
-| `assets/utils/fetchCache.js` | Fetch wrapper with localStorage cache (24h TTL) |
+| `assets/utils/fetchCache.js` | Fetch JSON with a localStorage cache: fresh for the given TTL (24h for bus data), kept 30 days as a fallback when the network fails or takes over 5s |
 | `assets/utils/getRoute.js` | URL hash router (parses `#/services/10`, `#/stops/12345`, etc.) |
-| `assets/utils/specialID.js` | Stop ID encoding/decoding |
+| `assets/utils/specialID.js` | Encodes stop/service IDs as numeric MapLibre feature IDs (char codes, e.g. `10e` → `4948101`) and back |
 | `assets/utils/interesting.js` | Interestingness ranking — `rankStopServicesByInterestingness()`, `computeAreaInterestingness()` |
 | `assets/utils/areas.js` | `getServiceAreas()` — planning areas a service passes through |
-| `assets/utils/homewardStops.js` | `HOME_STOP` constant + `findNearbyHomewardStops()` — finds stops within 500m with services heading to home stop |
+| `assets/utils/homewardStops.js` | `HOME_STOPS` constant + `findNearbyHomewardStops()` — finds stops within 500m with services heading to a home stop |
 | `assets/components/HomeBusPills.js` | Manages floating MapLibre DOM markers showing arrival times for homeward services, with a "Home" badge whose arrow shows the bus's travel direction; triggered by `visibilitychange` |
 | `assets/utils/travelBearing.js` | `getTravelBearing()` — direction a bus travels as it serves a stop, following the route line |
 | `assets/components/GeolocateControl.js` | Locate button + blue dot with compass cone (asks iOS for Motion & Orientation access on each tap until granted) |
@@ -44,12 +44,12 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 ## Data / APIs
 - Static data: `https://data.busrouter.sg/v1/` → `routes.min.json`, `stops.min.json`, `services.min.json`, `stops-areas.json`
 - Real-time arrivals: `https://arrivelah2.busrouter.sg`
-- Local map tiles: `/tiles/` (PMTiles format)
+- Map tiles: `https://assets.busrouter.sg/tiles/` (PMTiles, see `assets/map-style.js`); glyphs and sprites from `protomaps.github.io`
 
 ## Geographic Data Model
 
 ### Coordinate system
-All coordinates are `[longitude, latitude]` (GeoJSON order). `cheap-ruler` is instantiated once at lat 1.3 (Singapore) in `app.js` (line 51) and `BusServicesArrival.js` (line 4).
+All coordinates are `[longitude, latitude]` (GeoJSON order). `cheap-ruler` is instantiated once at lat 1.3 (Singapore) in `app.js` (line 55) and `BusServicesArrival.js` (line 4).
 
 ### Data files and in-memory shapes
 | File | Raw format | In-memory shape |
@@ -74,8 +74,8 @@ All coordinates are `[longitude, latitude]` (GeoJSON order). `cheap-ruler` is in
 ### Spatial queries
 Spatial logic is stop-centric:
 - `stopsData[stop].routes` → all services through a stop
-- `findRoutesBetween()` (`app.js` ~line 1056) — intersects service lists for two stops
-- `findNearestStops()` (`app.js` ~line 1113) — brute-force Euclidean scan of all stops
+- `findRoutesBetween()` (`app.js` ~line 1172) — intersects service lists for two stops
+- `findNearestStops()` (`app.js` ~line 1229) — brute-force Euclidean scan of all stops
 - `ruler.bearing()` — determines stop label side (left/right of road)
 - `ruler.distance()` — walking distance between stops (threshold: meters, speed 1.4 m/s)
 - `ruler.pointOnLine()` in `BusServicesArrival.js` — snaps live bus position to road geometry (within 10 m)
@@ -138,17 +138,18 @@ On every PWA open (via `document.visibilitychange`), the app automatically shows
 `findNearbyHomewardStops(userLngLat, stopsDataArr, servicesData, ruler, options?)`:
 1. Finds all stops within 500m (via `ruler.distance()`)
 2. Sorts by distance, caps at 8 stops
-3. For each stop's `routes` entries (e.g. `"10-0"`), checks `servicesData[service].routes[routeIndex]` — uses `indexOf(homeStop, nearbyIdx + 1)` to find 70261 **after** the nearby stop in the route, ensuring the bus hasn't passed it yet
+3. For each stop's `routes` entries (e.g. `"10-0"`), checks `servicesData[service].routes[routeIndex]` — uses `indexOf(homeStop, nearbyIdx + 1)` to find a home stop **after** the nearby stop in the route, ensuring the bus hasn't passed it yet
 4. **Detour check**: measures distance from home for each intermediate stop; skips if any stop deviates more than 2 km from home (catches loop routes going the long way and lollipop-shaped routes like 70M)
 5. **Terminal check**: collects first/last stops across all directions; skips if any terminal appears between the nearby stop and home (catches non-loop services that reach an endpoint before home)
 6. Deduplicates by service number; returns only stops with ≥1 qualifying service
 
-Home stop is hardcoded as `HOME_STOP = '70261'` in `homewardStops.js`.
+Home stops are hardcoded as `HOME_STOPS = ['70261', '03019']` in `homewardStops.js`; whichever the bus reaches first counts.
 
 ### Pill rendering (`assets/components/HomeBusPills.js`)
 - Each qualifying stop gets a `maplibregl.Marker` whose element (`.home-bus-marker`) wraps the visible `.home-bus-pill`, anchored `'bottom'` with 8px offset above the stop icon. The wrapper matters: MapLibre positions the marker element with an inline `transform`, which the pill's fade-in animation would otherwise override
 - The pill starts with a blue **Home** badge whose arrow points the way the bus travels from that stop (see below), then the service arrival times
-- Arrival times fetched from `https://arrivelah2.busrouter.sg/?id={stopNumber}`, polled every 15s via `setRafInterval`
+- Arrival times fetched from `https://arrivelah2.busrouter.sg/?id={stopNumber}`, polled every 15s via `setRafInterval` (which also runs immediately). Polling is skipped while the pills are hidden by zoom, and runs straight away when they reappear with times older than 15s
+- Times are rounded down to whole minutes (`timeDisplay()` in `utils/bus.js`), the same as the stop popover
 - After each fetch, pill entries are **sorted by `duration_ms` ascending** (soonest first) and the pill DOM is rebuilt
 - Pills are **zoom-dependent**: visible at zoom ≥ 15 (same threshold as stop name labels), hidden below via a `map.on('zoom', ...)` listener
 - `pointer-events: none` — pills don't block tap-through to the map
@@ -163,6 +164,16 @@ Tells the user which side of the road to wait on, even when GPS is off by a road
 
 All buses at a stop pull in on the same side, so the first homeward service's route is used. Arrows are rotated by `bearing - map.getBearing()` and updated on the map's `rotate` event.
 
+## Reliability
+
+The app is used on the move, on patchy mobile data, so failures should degrade rather than break it:
+
+- **Startup**: the map is created straight away and loads tiles while the bus data downloads. If the data can't be loaded (and there's no cached copy), the search panel shows an error with a **Try again** button instead of placeholder rows. `renderRoute()` only runs once data and map style are both ready (`appReady`)
+- **Stale data**: `fetchCache()` serves an expired copy when the network fails or is slow (see Key Files). The three data files refresh independently, so after loading, service routes are filtered to stops that exist in `stopsData`, and missing route lines are skipped (`routeGeometry()`)
+- **Bad links**: a `#/services/…`, `#/stops/…` or `#/between/…` link to something that doesn't exist shows a toast (`showToast()`) and replaces the URL with `#/`, rather than leaving the map half-reset with the search disabled
+- **Stop popover arrivals** (`BusServicesArrival.js`): fetching lives inside the effect, so each open/stop change gets its own abort controller and responses arriving after it closes are dropped. Times are cleared when the popover (re)opens, and a note appears if a fetch fails
+- **Geolocation** (`GeolocateControl.js`): the watch ID is kept in `_watchId`. Timeouts and lost signal leave the watch running (it recovers by itself); only a permission denial stops it, and the "location blocked" alert only appears after a tap
+
 ## Deployment
 
 Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
@@ -174,8 +185,8 @@ Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
 ## Patterns
 - **State**: Preact hooks for component state; global `STORE` object in `app.js` for shared state
 - **Geo**: use `cheap-ruler` for distance/bearing, `turf` only for polygon ops
-- **Caching**: `fetchCache.js` for API calls; Workbox for asset caching
-- **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible). Silently falls back to default Singapore bounds if denied/unavailable. Also called on each `visibilitychange → visible` to refresh home bus pills.
+- **Caching**: `fetchCache.js` for data files; Workbox for asset caching
+- **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible), but only on the home view and only if the user hasn't moved the map yet, so deep links keep their view. Silently falls back to default Singapore bounds if denied/unavailable. Also called on each `visibilitychange → visible` to refresh home bus pills.
 - **Compass cone (iOS)**: `DeviceOrientationEvent.requestPermission()` only prompts during a tap. When location is already allowed, `GeolocateControl` starts tracking on load (no tap), so that first request fails; it asks again on every locate-button tap until granted. The cone is rotated by `heading - map.getBearing()`.
 
 ## Config Files
@@ -194,6 +205,7 @@ This project was forked from BusRouter SG and rebranded as **Anti-coma Excursion
 - CNAME removed (no longer deployed to busrouter.sg)
 
 ## What Has Been Removed
+- **Analytics and error tracking** — the original site's Google Analytics, Piwik Pro and Sentry (plus `workbox-google-analytics`), which reported to BusRouter's accounts
 - **Attribution control** — MapLibre `AttributionControl` removed from map
 - **Ads** — BuySellAds integration (`assets/ad.js`, all `<Ad />` render sites, `window.optimize` scripts)
 - **Visualization mini-site** — `visualization/` directory and entry point deleted entirely

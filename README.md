@@ -18,6 +18,7 @@ Live at: **https://lproperty.github.io/Excursion/**
 - **Compass cone** on your location dot shows which way you're facing (on iPhone, tap the locate button and allow Motion & Orientation access)
 - Origin stop clearly marked when viewing a route from a stop
 - Works as a PWA (add to home screen on iPhone/Android)
+- Copes with patchy connections: bus data is kept for offline use, and the app opens from cache when the network is slow
 
 ## Development
 
