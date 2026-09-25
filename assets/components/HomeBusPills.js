@@ -3,17 +3,16 @@ import { toGeoJSON } from '@mapbox/polyline';
 import { setRafInterval, clearRafInterval } from '../utils/rafInterval';
 import { findNearbyHomewardStops } from '../utils/homewardStops';
 import getTravelBearing from '../utils/travelBearing';
+import { timeDisplay } from '../utils/bus';
 
 const ARRIVAL_URL = 'https://arrivelah2.busrouter.sg/?id=';
 const POLL_INTERVAL = 15_000;
 const ZOOM_THRESHOLD = 15;
 const MAX_SERVICES_PER_PILL = 3;
 
+// Rounded down like the stop popover, so both show the same minutes
 function formatArrival(ms) {
-  if (ms == null) return '...';
-  const mins = Math.round(ms / 60_000);
-  if (mins <= 0) return 'Arr';
-  return mins + 'm';
+  return ms == null ? '...' : timeDisplay(ms);
 }
 
 // The marker element is positioned by MapLibre via `transform`, so the
@@ -45,12 +44,17 @@ function renderPillContent(el, entries) {
   const shown = sorted.slice(0, MAX_SERVICES_PER_PILL);
   const overflow = sorted.length - shown.length;
 
-  el.innerHTML = '';
+  el.replaceChildren();
   for (const { service, ms } of shown) {
     const entry = document.createElement('span');
     entry.className = 'pill-entry';
     entry.dataset.service = service;
-    entry.innerHTML = `<b>${service}</b> <span class="pill-time">${formatArrival(ms)}</span>`;
+    const number = document.createElement('b');
+    number.textContent = service;
+    const time = document.createElement('span');
+    time.className = 'pill-time';
+    time.textContent = formatArrival(ms);
+    entry.append(number, ' ', time);
     el.appendChild(entry);
   }
 
@@ -81,6 +85,8 @@ export default class HomeBusPills {
     this._intervalId = null;
     this._controller = null;
     this._zoomListener = null;
+    this._visible = false;
+    this._lastFetch = 0;
   }
 
   show(userLngLat) {
@@ -97,7 +103,8 @@ export default class HomeBusPills {
 
     if (qualifiedStops.length === 0) return;
 
-    const currentZoom = this._map.getZoom();
+    this._visible = this._map.getZoom() >= ZOOM_THRESHOLD;
+    this._lastFetch = 0;
 
     for (const { stop, homewardServices } of qualifiedStops) {
       const element = buildPillElement();
@@ -107,7 +114,7 @@ export default class HomeBusPills {
         servicesEl,
         homewardServices.map(({ service }) => ({ service, ms: null })),
       );
-      if (currentZoom < ZOOM_THRESHOLD) {
+      if (!this._visible) {
         element.style.display = 'none';
       }
 
@@ -132,15 +139,20 @@ export default class HomeBusPills {
     this._updateArrows();
     this._map.on('rotate', this._updateArrows);
 
-    // Fetch immediately, then poll
-    this._fetchArrivals();
+    // Fetches immediately, then polls
     this._intervalId = setRafInterval(() => this._fetchArrivals(), POLL_INTERVAL);
 
     // Zoom-dependent visibility
     this._zoomListener = () => {
       const visible = this._map.getZoom() >= ZOOM_THRESHOLD;
+      if (visible === this._visible) return;
+      this._visible = visible;
       for (const { element } of this._markers.values()) {
         element.style.display = visible ? '' : 'none';
+      }
+      // Polling skips hidden pills, so their times may be old
+      if (visible && Date.now() - this._lastFetch > POLL_INTERVAL) {
+        this._fetchArrivals();
       }
     };
     this._map.on('zoom', this._zoomListener);
@@ -195,7 +207,9 @@ export default class HomeBusPills {
   };
 
   _fetchArrivals() {
-    if (this._markers.size === 0) return;
+    // No point fetching for pills that are hidden at this zoom
+    if (this._markers.size === 0 || !this._visible) return;
+    this._lastFetch = Date.now();
 
     this._controller?.abort();
     this._controller = new AbortController();
@@ -204,7 +218,10 @@ export default class HomeBusPills {
     const fetches = [...this._markers.entries()].map(
       ([stopNumber, { homewardServices, servicesEl }]) =>
         fetch(ARRIVAL_URL + stopNumber, { signal })
-          .then((r) => r.json())
+          .then((r) => {
+            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+            return r.json();
+          })
           .then((data) => {
             const arrivalMap = {};
             for (const svc of data.services || []) {
