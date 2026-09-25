@@ -58,7 +58,7 @@ let homeBusPills = null;
 // Set once the data and map are ready for routes to be rendered
 let appReady = false;
 
-let rafST;
+let rafST, rafSTTimeout;
 const rafScrollTop = () => {
   window.scrollTo(0, 0);
   rafST = requestAnimationFrame(rafScrollTop);
@@ -66,7 +66,10 @@ const rafScrollTop = () => {
 
 const $tooltip = document.getElementById('tooltip');
 function showStopTooltip(data) {
-  $tooltip.innerHTML = `<span class="stop-tag">${data.number}</span> ${data.name}`;
+  const tag = document.createElement('span');
+  tag.className = 'stop-tag';
+  tag.textContent = data.number;
+  $tooltip.replaceChildren(tag, ` ${data.name}`);
   $tooltip.classList.add('show');
   const { x, y: top } = data;
   const left = Math.max(
@@ -180,14 +183,24 @@ const App = () => {
     setExpandSearch(true);
     setExpandedSearchOnce(true);
     // $map.classList.add('fade-out');
+
+    // Keep the page pinned while the panel slides up. Stop when the slide
+    // ends, or soon anyway since nothing slides if the panel is already up.
+    cancelAnimationFrame(rafST);
+    clearTimeout(rafSTTimeout);
     rafScrollTop();
-    searchPopover.current?.addEventListener('transitionend', (e) => {
+    const $popover = searchPopover.current;
+    const stopScrollTop = () => {
       cancelAnimationFrame(rafST);
-    });
+      clearTimeout(rafSTTimeout);
+      $popover?.removeEventListener('transitionend', stopScrollTop);
+    };
+    $popover?.addEventListener('transitionend', stopScrollTop);
+    rafSTTimeout = setTimeout(stopScrollTop, 600);
   };
 
   const handleSearch = (e) => {
-    const { value } = (e && e.target) || searchField;
+    const { value } = (e && e.target) || searchField.current || {};
     if (value) {
       const services = fuseServices.search(value);
       let stops = [];
@@ -230,6 +243,10 @@ const App = () => {
   const zoomToArea = (areaName) => {
     const bounds = STORE.areaBounds?.[areaName];
     if (!bounds || bounds.isEmpty()) return;
+    // Move the panel out of the way so the area can be seen
+    searchField.current?.blur();
+    setExpandSearch(false);
+    setShrinkSearch(true);
     map.fitBounds(bounds, { padding: { top: 80, right: 80, bottom: 80, left: 80 } });
   };
 
@@ -363,7 +380,7 @@ const App = () => {
           );
           stopToBeHighlighted?.classList.add('flash');
           stopToBeHighlighted?.scrollIntoView({
-            behaviour: 'smooth',
+            behavior: 'smooth',
             block: 'center',
             inline: 'center',
           });
@@ -551,8 +568,7 @@ const App = () => {
 
     // Auto-select first result
     setTimeout(() => {
-      const firstResult = betweenPopover.current.querySelector('.between-item');
-      firstResult.click();
+      betweenPopover.current?.querySelector('.between-item')?.click();
     }, 300);
   };
 
@@ -710,7 +726,8 @@ const App = () => {
   };
   const [head, setHead] = useState(defaultHead);
   useEffect(() => {
-    let { title, url, desc, image } = head;
+    let { title, url, desc = defaultHead.desc, image = defaultHead.image } =
+      head;
     document.title = document.querySelector(
       'meta[property="og:title"]',
     ).content = title;
@@ -2755,9 +2772,13 @@ const App = () => {
     showServicePopover,
     popoverIsUp,
   ]);
-  document.addEventListener('keyup', () => {
-    document.body.classList.remove('alt-mode');
-  });
+  useEffect(() => {
+    const handler = () => {
+      document.body.classList.remove('alt-mode');
+    };
+    document.addEventListener('keyup', handler);
+    return () => document.removeEventListener('keyup', handler);
+  }, []);
 
   const showServicesFloatPill =
     route.page === 'service' && servicesData && routeServices.length > 1;
@@ -2781,7 +2802,7 @@ const App = () => {
           hidden={!(showServicesFloatPill || showPassingRoutesFloatPill)}
         >
           <div class="float-pill" ref={floatPill}>
-            <a href="#/" class="popover-close">
+            <a href="#/" class="popover-close" aria-label="Close">
               &times;
             </a>
             {showServicesFloatPill && (
@@ -3046,7 +3067,7 @@ const App = () => {
       >
         {stopPopoverData && (
           <>
-            <a href="#/" onClick={hideStopPopover} class="popover-close">
+            <a href="#/" onClick={hideStopPopover} class="popover-close" aria-label="Close">
               &times;
             </a>
             <header>
@@ -3122,7 +3143,7 @@ const App = () => {
         class={`popover ${showServicePopover ? 'expand' : ''}`}
         key={``}
       >
-        <a href="#/" onClick={navBackToStop} class="popover-close">
+        <a href="#/" onClick={navBackToStop} class="popover-close" aria-label="Close">
           &times;
         </a>
         {servicesData && routeServices.length && (
@@ -3183,7 +3204,7 @@ const App = () => {
         class={`popover ${showBetweenPopover ? 'expand' : ''}`}
       >
         {showBetweenPopover && [
-          <a href="#/" onClick={resetStartEndStops} class="popover-close">
+          <a href="#/" onClick={resetStartEndStops} class="popover-close" aria-label="Close">
             &times;
           </a>,
           <header>
@@ -3272,7 +3293,7 @@ const App = () => {
         class={`popover ${showArrivalsPopover ? 'expand' : ''}`}
       >
         {showArrivalsPopover && [
-          <a href="#/" onClick={closeBusArrival} class="popover-close">
+          <a href="#/" onClick={closeBusArrival} class="popover-close" aria-label="Close">
             &times;
           </a>,
           <a
@@ -3316,7 +3337,7 @@ if (window.navigator.standalone) {
   // Refresh map size when dismissing software keyboard
   // https://stackoverflow.com/a/19464029/20838
   document.addEventListener('focusout', () => {
-    if (_map) _map.resize();
+    window._map?.resize();
   });
 
   // Enable CSS active states

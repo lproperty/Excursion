@@ -550,7 +550,7 @@ a:active {
   min-height: calc(100vh - 20px);
   border: 0;
   opacity: 0;
-  transition: opacity 0.3 1s ease-in-out;
+  transition: opacity 0.3s 1s ease-in-out;
 }
 #arrivals-popover.expand iframe {
   opacity: 1;
@@ -1760,7 +1760,7 @@ a.service-tag:hover {
     background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.15));
   }
   6.25% {
-    background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.1.75));
+    background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.175));
   }
   12.5% {
     background-image: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.2));

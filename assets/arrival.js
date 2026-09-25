@@ -55,7 +55,7 @@ const WheelChairInaccessible = ({ size = 11 }) => (
 const Bus = (props) => {
   const { maxPx, index, duration_ms, type, load, feature, _ghost, _id } = props;
 
-  const busImage = BUSES[type.toLowerCase()];
+  const busImage = BUSES[(type || '').toLowerCase()];
 
   const prevPx = useRef();
   const px = (duration_ms / 1000 / 60) * (duration_ms > 0 ? 10 : 2.5);
@@ -86,10 +86,10 @@ const Bus = (props) => {
         {/* <b class="debug">{_id}</b> */}
         <img {...busImage} />
         <br />
-        <span class={`time time-${load.toLowerCase()}`}>
+        <span class={`time time-${(load || '').toLowerCase()}`}>
           <ArrivalTimeText ms={duration_ms} />
         </span>
-        {feature.toLowerCase() !== 'wab' && <WheelChairInaccessible />}
+        {(feature || '').toLowerCase() !== 'wab' && <WheelChairInaccessible />}
       </span>
     </span>
   );
