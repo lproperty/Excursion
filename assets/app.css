@@ -1950,22 +1950,41 @@ input[type='checkbox']:checked:after {
 }
 
 /* Home bus pills — floating arrival bubbles anchored to nearby stops */
+.home-bus-marker {
+  pointer-events: none;
+}
 .home-bus-pill {
   background: #fff;
   border-radius: 16px;
-  padding: 5px 10px;
+  overflow: hidden;
   font-size: 13px;
   font-family: inherit;
   line-height: 1.3;
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
   display: flex;
+  white-space: nowrap;
+  user-select: none;
+  animation: pill-fade-in 0.25s ease-out;
+}
+/* "Home" badge; its arrow shows which way the bus travels from this stop */
+.home-bus-pill .pill-home {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px 5px 7px;
+  background: #007aff;
+  color: #fff;
+  font-weight: 600;
+}
+.home-bus-pill .pill-arrow {
+  flex-shrink: 0;
+  fill: currentColor;
+}
+.home-bus-pill .pill-services {
+  display: flex;
   align-items: center;
   gap: 6px;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-  border-left: 3px solid #007aff;
-  animation: pill-fade-in 0.25s ease-out;
+  padding: 5px 10px 5px 8px;
 }
 .home-bus-pill .pill-entry {
   display: flex;
