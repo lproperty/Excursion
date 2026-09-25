@@ -36,7 +36,9 @@ npm run generate:stop-areas  # Precompute stop → planning area mapping → dat
 | `assets/utils/interesting.js` | Interestingness ranking — `rankStopServicesByInterestingness()`, `computeAreaInterestingness()` |
 | `assets/utils/areas.js` | `getServiceAreas()` — planning areas a service passes through |
 | `assets/utils/homewardStops.js` | `HOME_STOP` constant + `findNearbyHomewardStops()` — finds stops within 500m with services heading to home stop |
-| `assets/components/HomeBusPills.js` | Manages floating MapLibre DOM markers showing arrival times for homeward services; triggered by `visibilitychange` |
+| `assets/components/HomeBusPills.js` | Manages floating MapLibre DOM markers showing arrival times for homeward services, with a "Home" badge whose arrow shows the bus's travel direction; triggered by `visibilitychange` |
+| `assets/utils/travelBearing.js` | `getTravelBearing()` — direction a bus travels as it serves a stop, following the route line |
+| `assets/components/GeolocateControl.js` | Locate button + blue dot with compass cone (asks iOS for Motion & Orientation access on each tap until granted) |
 | `service-worker.js` | Workbox cache strategies |
 
 ## Data / APIs
@@ -144,11 +146,22 @@ On every PWA open (via `document.visibilitychange`), the app automatically shows
 Home stop is hardcoded as `HOME_STOP = '70261'` in `homewardStops.js`.
 
 ### Pill rendering (`assets/components/HomeBusPills.js`)
-- Each qualifying stop gets a `maplibregl.Marker` with a DOM element (`.home-bus-pill`), anchored `'bottom'` with 8px offset above the stop icon
+- Each qualifying stop gets a `maplibregl.Marker` whose element (`.home-bus-marker`) wraps the visible `.home-bus-pill`, anchored `'bottom'` with 8px offset above the stop icon. The wrapper matters: MapLibre positions the marker element with an inline `transform`, which the pill's fade-in animation would otherwise override
+- The pill starts with a blue **Home** badge whose arrow points the way the bus travels from that stop (see below), then the service arrival times
 - Arrival times fetched from `https://arrivelah2.busrouter.sg/?id={stopNumber}`, polled every 15s via `setRafInterval`
 - After each fetch, pill entries are **sorted by `duration_ms` ascending** (soonest first) and the pill DOM is rebuilt
 - Pills are **zoom-dependent**: visible at zoom ≥ 15 (same threshold as stop name labels), hidden below via a `map.on('zoom', ...)` listener
 - `pointer-events: none` — pills don't block tap-through to the map
+
+### Travel direction arrow (`assets/utils/travelBearing.js`)
+Tells the user which side of the road to wait on, even when GPS is off by a road's width. Singapore drives on the left, so buses heading the arrow's way stop on the left-hand side of the road.
+
+`getTravelBearing(stopCoords, nextStopCoords, line, ruler)`:
+1. Scores each segment of the route line within 50 m of the stop by distance, plus penalties for heading away from the next stop and for having the stop on its right (buses pull in on the left). This picks the right pass where a route runs both ways along one road line (loops, out-and-back routes)
+2. Returns the bearing between points 15 m behind and ahead of the stop along that pass, so the arrow follows the road rather than cutting to the next stop
+3. Falls back to the straight bearing to the next stop when there's no route line nearby
+
+All buses at a stop pull in on the same side, so the first homeward service's route is used. Arrows are rotated by `bearing - map.getBearing()` and updated on the map's `rotate` event.
 
 ## Deployment
 
@@ -163,6 +176,7 @@ Deployed to **GitHub Pages** at `https://lproperty.github.io/Excursion/`.
 - **Geo**: use `cheap-ruler` for distance/bearing, `turf` only for polygon ops
 - **Caching**: `fetchCache.js` for API calls; Workbox for asset caching
 - **Geolocation**: On app load, `navigator.geolocation.getCurrentPosition` flies to user's position at zoom 16 (stop names visible). Silently falls back to default Singapore bounds if denied/unavailable. Also called on each `visibilitychange → visible` to refresh home bus pills.
+- **Compass cone (iOS)**: `DeviceOrientationEvent.requestPermission()` only prompts during a tap. When location is already allowed, `GeolocateControl` starts tracking on load (no tap), so that first request fails; it asks again on every locate-button tap until granted. The cone is rotated by `heading - map.getBearing()`.
 
 ## Config Files
 | File | Purpose |
