@@ -1,5 +1,3 @@
-import './error-tracking';
-
 import { h, render, Fragment } from 'preact';
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import maplibregl from 'maplibre-gl';
@@ -693,7 +691,7 @@ const App = () => {
     document.title = document.querySelector(
       'meta[property="og:title"]',
     ).content = title;
-    if (!/^https?/.test(url)) url = 'https://busrouter.sg/#' + url;
+    if (!/^https?/.test(url)) url = defaultURL + '#' + url;
     document.querySelector('meta[property="og:url"]').content = url;
     document.querySelector('meta[name="description"]').content =
       document.querySelector('meta[property="og:description"]').content = desc;
@@ -1223,11 +1221,6 @@ const App = () => {
       }
     }
 
-    const { pathname, search, hash } = location;
-    gtag('config', window._GA_TRACKING_ID, {
-      page_path: pathname + search + hash,
-    });
-
     setRouteLoading(false);
   };
 
@@ -1506,15 +1499,6 @@ const App = () => {
 
     // const localizedStyle = language.setLanguage(map.getStyle(), 'zh-Hans');
     // map.setStyle(localizedStyle);
-
-    if (window.performance) {
-      const timeSincePageLoad = Math.round(performance.now());
-      gtag('event', 'timing_complete', {
-        name: 'load',
-        value: timeSincePageLoad,
-        event_category: 'Map',
-      });
-    }
 
     map
       .loadImage(stopImagePath)
@@ -3257,18 +3241,6 @@ if ('serviceWorker' in navigator) {
       new URL('../service-worker.js', import.meta.url),
       { type: 'module' },
     );
-  });
-}
-
-if (
-  matchMedia('(display-mode: standalone)').matches ||
-  'standalone' in navigator
-) {
-  gtag('event', 'pwa_load', {
-    event_category: 'PWA',
-    event_label: 'standalone',
-    value: true,
-    non_interaction: true,
   });
 }
 

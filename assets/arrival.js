@@ -1,5 +1,3 @@
-import './error-tracking';
-
 import { h, render, Fragment } from 'preact';
 import { useState, useRef, useEffect, useLayoutEffect } from 'preact/hooks';
 
