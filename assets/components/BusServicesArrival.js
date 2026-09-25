@@ -1,5 +1,5 @@
 import { h, Fragment } from 'preact';
-import { useRef, useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect } from 'preact/hooks';
 import CheapRuler from 'cheap-ruler';
 const ruler = new CheapRuler(1.3);
 
@@ -24,9 +24,12 @@ const setupBusesStopLayerOnce = (map) => {
       },
     });
     if (!map.hasImage('bus-tiny')) {
-      map.loadImage(busTinyImagePath, (e, img) => {
-        if (!map.hasImage('bus-tiny')) map.addImage('bus-tiny', img);
-      });
+      map
+        .loadImage(busTinyImagePath)
+        .then((img) => {
+          if (!map.hasImage('bus-tiny')) map.addImage('bus-tiny', img.data);
+        })
+        .catch(() => {});
     }
     map.addLayer({
       id: 'buses-stop',
@@ -85,6 +88,7 @@ export default function BusServicesArrival({
         .slice()
         .sort((a, b) => sortServices(a.service, b.service));
   const [isLoading, setIsLoading] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
   const [servicesArrivals, setServicesArrivals] = useState({});
   const [servicesIssues, setServicesIssues] = useState([]);
   const [liveBusCount, setLiveBusCount] = useState(0);
@@ -92,156 +96,177 @@ export default function BusServicesArrival({
     useState(false);
   const route = getRoute();
 
-  let controller;
-  const renderStopsTimeout = useRef();
-  const fetchServices = useCallback(() => {
-    setIsLoading(true);
-    controller = new AbortController();
-    fetch(`https://arrivelah2.busrouter.sg/?id=${id}`, {
-      signal: controller.signal,
-    })
-      .then((res) => res.json())
-      .then((results) => {
-        const servicesArrivals = {};
-        const { services } = results;
-        services.forEach((service) => {
-          if (
-            !servicesArrivals[service.no] ||
-            servicesArrivals[service.no] > service.next.duration_ms // if there is a service with multiple directions, we only want the one with the shortest duration
-          ) {
-            servicesArrivals[service.no] = service.next.duration_ms;
-          }
-        });
-        setServicesArrivals(servicesArrivals);
-        setIsLoading(false);
-
-        // check for issues (duplicate services, multiple visits)
-        const servicesWithIssues = [];
-        services.forEach((service, i) => {
-          const hasDuplicateServices =
-            services.findIndex((s) => s.no === service.no) !== i;
-          if (hasDuplicateServices) {
-            servicesWithIssues.push(service.no);
-          }
-          const { next, next2, next3 } = service;
-          const hasMultipleVisits =
-            next?.visit_number > 1 ||
-            next2?.visit_number > 1 ||
-            next3?.visit_number > 1;
-          if (hasMultipleVisits) {
-            servicesWithIssues.push(service.no);
-          }
-        });
-        setServicesIssues(servicesWithIssues);
-
-        const hasIssues = servicesWithIssues.length > 0;
-        setOneServiceHasMultipleDirections(hasIssues);
-
-        if (showBusesOnMap) {
-          setupBusesStopLayerOnce(map);
-          renderStopsTimeout.current = setTimeout(
-            () => {
-              const servicesWithCoords = services.filter(
-                (s) => s.no && s.next.lat > 0,
-              );
-              setLiveBusCount(servicesWithCoords.length);
-              const pointMargin = 100;
-              const servicesWithFixedCoordsPromises = servicesWithCoords.map(
-                async (s) => {
-                  await timeout(0); // Forces this to be async
-                  const coords = [s.next.lng, s.next.lat];
-                  const point = map.project(coords);
-                  let shortestDistance = Infinity;
-                  let nearestCoords;
-                  if (point.x && point.y) {
-                    const features = map
-                      .queryRenderedFeatures(
-                        [
-                          [point.x - pointMargin, point.y - pointMargin],
-                          [point.x + pointMargin, point.y + pointMargin],
-                        ],
-                        {
-                          validate: false,
-                        },
-                      )
-                      .filter((f) => {
-                        return (
-                          f.sourceLayer === 'road' &&
-                          f.layer.type === 'line' &&
-                          f.properties.class != 'path' &&
-                          !/(pedestrian|sidewalk|steps)/.test(f.layer.id)
-                        );
-                      });
-                    features.forEach((f) => {
-                      const nearestPoint = ruler.pointOnLine(
-                        f.geometry.coordinates,
-                        coords,
-                      );
-                      if (nearestPoint.t) {
-                        const distance = ruler.distance(
-                          coords,
-                          nearestPoint.point,
-                        );
-                        if (distance < shortestDistance) {
-                          shortestDistance = distance;
-                          nearestCoords = nearestPoint.point;
-                        }
-                      }
-                    });
-                    if (nearestCoords && shortestDistance * 1000 < 10) {
-                      // Only within 10m
-                      console.log(
-                        `Fixed bus position: ${s.no} - ${(
-                          shortestDistance * 1000
-                        ).toFixed(3)}m`,
-                      );
-                      s.next = {
-                        lng: nearestCoords[0],
-                        lat: nearestCoords[1],
-                      };
-                    }
-                  }
-                  return s;
-                },
-              );
-              requestAnimationFrame(async () => {
-                const servicesWithFixedCoords = await Promise.all(
-                  servicesWithFixedCoordsPromises,
-                );
-                map.getSource('buses-stop').setData({
-                  type: 'FeatureCollection',
-                  features: servicesWithFixedCoords.map((s) => ({
-                    type: 'Feature',
-                    id: encode(s.no),
-                    properties: {
-                      number: s.no,
-                    },
-                    geometry: {
-                      type: 'Point',
-                      coordinates: [s.next.lng, s.next.lat],
-                    },
-                  })),
-                });
-              });
-            },
-            map.loaded() ? 0 : 1000,
-          );
-        }
-      })
-      .catch(() => {
-        // Silent fail
-      });
-  }, [id]);
-
   useEffect(() => {
-    let intervalID;
-    if (active) {
-      intervalID = setRafInterval(fetchServices, 15 * 1000); // 15 seconds
-    }
+    if (!active) return;
+
+    // Times from another stop, or from when this one was last open, are wrong
+    setServicesArrivals({});
+    setServicesIssues([]);
+    setOneServiceHasMultipleDirections(false);
+    setLiveBusCount(0);
+    setFetchFailed(false);
+
+    // Responses that land after the popover closes or changes stop are dropped
+    let stopped = false;
+    let controller;
+    let renderStopsTimeout;
+    const fetchServices = () => {
+      controller?.abort();
+      controller = new AbortController();
+      setIsLoading(true);
+      fetch(`https://arrivelah2.busrouter.sg/?id=${id}`, {
+        signal: controller.signal,
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+          return res.json();
+        })
+        .then((results) => {
+          if (stopped) return;
+          const servicesArrivals = {};
+          const { services = [] } = results;
+          services.forEach((service) => {
+            const ms = service.next?.duration_ms;
+            if (ms == null) return;
+            if (
+              servicesArrivals[service.no] == null ||
+              servicesArrivals[service.no] > ms // if there is a service with multiple directions, we only want the one with the shortest duration
+            ) {
+              servicesArrivals[service.no] = ms;
+            }
+          });
+          setServicesArrivals(servicesArrivals);
+          setIsLoading(false);
+          setFetchFailed(false);
+
+          // check for issues (duplicate services, multiple visits)
+          const servicesWithIssues = [];
+          services.forEach((service, i) => {
+            const hasDuplicateServices =
+              services.findIndex((s) => s.no === service.no) !== i;
+            if (hasDuplicateServices) {
+              servicesWithIssues.push(service.no);
+            }
+            const { next, next2, next3 } = service;
+            const hasMultipleVisits =
+              next?.visit_number > 1 ||
+              next2?.visit_number > 1 ||
+              next3?.visit_number > 1;
+            if (hasMultipleVisits) {
+              servicesWithIssues.push(service.no);
+            }
+          });
+          setServicesIssues(servicesWithIssues);
+
+          const hasIssues = servicesWithIssues.length > 0;
+          setOneServiceHasMultipleDirections(hasIssues);
+
+          if (showBusesOnMap) {
+            setupBusesStopLayerOnce(map);
+            clearTimeout(renderStopsTimeout);
+            renderStopsTimeout = setTimeout(
+              () => {
+                const servicesWithCoords = services.filter(
+                  (s) => s.no && s.next?.lat > 0,
+                );
+                setLiveBusCount(servicesWithCoords.length);
+                const pointMargin = 100;
+                const servicesWithFixedCoordsPromises = servicesWithCoords.map(
+                  async (s) => {
+                    await timeout(0); // Forces this to be async
+                    const coords = [s.next.lng, s.next.lat];
+                    const point = map.project(coords);
+                    let shortestDistance = Infinity;
+                    let nearestCoords;
+                    if (point.x && point.y) {
+                      const features = map
+                        .queryRenderedFeatures(
+                          [
+                            [point.x - pointMargin, point.y - pointMargin],
+                            [point.x + pointMargin, point.y + pointMargin],
+                          ],
+                          {
+                            validate: false,
+                          },
+                        )
+                        .filter((f) => {
+                          return (
+                            f.sourceLayer === 'road' &&
+                            f.layer.type === 'line' &&
+                            f.properties.class != 'path' &&
+                            !/(pedestrian|sidewalk|steps)/.test(f.layer.id)
+                          );
+                        });
+                      features.forEach((f) => {
+                        const nearestPoint = ruler.pointOnLine(
+                          f.geometry.coordinates,
+                          coords,
+                        );
+                        if (nearestPoint.t) {
+                          const distance = ruler.distance(
+                            coords,
+                            nearestPoint.point,
+                          );
+                          if (distance < shortestDistance) {
+                            shortestDistance = distance;
+                            nearestCoords = nearestPoint.point;
+                          }
+                        }
+                      });
+                      if (nearestCoords && shortestDistance * 1000 < 10) {
+                        // Only within 10m
+                        console.log(
+                          `Fixed bus position: ${s.no} - ${(
+                            shortestDistance * 1000
+                          ).toFixed(3)}m`,
+                        );
+                        s.next = {
+                          lng: nearestCoords[0],
+                          lat: nearestCoords[1],
+                        };
+                      }
+                    }
+                    return s;
+                  },
+                );
+                requestAnimationFrame(async () => {
+                  const servicesWithFixedCoords = await Promise.all(
+                    servicesWithFixedCoordsPromises,
+                  );
+                  if (stopped) return;
+                  map.getSource('buses-stop')?.setData({
+                    type: 'FeatureCollection',
+                    features: servicesWithFixedCoords.map((s) => ({
+                      type: 'Feature',
+                      id: encode(s.no),
+                      properties: {
+                        number: s.no,
+                      },
+                      geometry: {
+                        type: 'Point',
+                        coordinates: [s.next.lng, s.next.lat],
+                      },
+                    })),
+                  });
+                });
+              },
+              map.loaded() ? 0 : 1000,
+            );
+          }
+        })
+        .catch((e) => {
+          if (stopped || e.name === 'AbortError') return;
+          setIsLoading(false);
+          setFetchFailed(true);
+        });
+    };
+
+    const intervalID = setRafInterval(fetchServices, 15 * 1000); // 15 seconds
     return () => {
+      stopped = true;
       clearRafInterval(intervalID);
       controller?.abort();
-      clearTimeout(renderStopsTimeout.current);
+      clearTimeout(renderStopsTimeout);
       removeMapBuses(map);
     };
   }, [id, active, showBusesOnMap]);
@@ -277,7 +302,7 @@ export default function BusServicesArrival({
                     </span>
                   )}
                 {servicesIssues.includes(service) && ' ⚠️'}
-                {servicesArrivals[service] && (
+                {servicesArrivals[service] != null && (
                   <span class="service-tag-pill arrival">
                     <ArrivalTimeText ms={servicesArrivals[service]} />
                   </span>
@@ -287,6 +312,11 @@ export default function BusServicesArrival({
           );
         })}
       </p>
+      {fetchFailed && (
+        <p class="arrivals-error">
+          Couldn't get arrival times. Retrying every 15 seconds.
+        </p>
+      )}
       {oneServiceHasMultipleDirections && (
         <div class="callout warning iconic">
           {'Some services serve multiple directions. Open "Bus arrivals" to see more details.'}

@@ -309,6 +309,11 @@ a:active {
   opacity: 0.75;
   pointer-events: none;
 }
+#stop-popover p.arrivals-error {
+  margin: 4px 0 8px;
+  font-size: 0.8em;
+  color: #999;
+}
 
 #between-popover .between-block {
   margin: 1em 0;
