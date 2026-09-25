@@ -1467,6 +1467,33 @@ a.service-tag:hover {
   opacity: 1;
 }
 
+/* Brief notices, e.g. when a link points to a stop that no longer exists */
+.toast {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  /* Centred, clear of the map controls in the top right */
+  left: 60px;
+  right: 60px;
+  width: fit-content;
+  margin: 0 auto;
+  padding: 8px 14px;
+  border-radius: 18px;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+.toast.show {
+  opacity: 1;
+  transform: none;
+}
+
 @media (min-width: 481px) {
   .popover {
     max-width: 320px;

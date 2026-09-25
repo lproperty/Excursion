@@ -132,6 +132,18 @@ const App = () => {
   const [areaInterestingness, setAreaInterestingness] = useState([]);
   const [loadError, setLoadError] = useState(null);
 
+  // The message stays while the toast fades out
+  const [toast, setToast] = useState({ message: '', show: false });
+  const toastTimeout = useRef(null);
+  const showToast = (message) => {
+    clearTimeout(toastTimeout.current);
+    setToast({ message, show: true });
+    toastTimeout.current = setTimeout(
+      () => setToast((toast) => ({ ...toast, show: false })),
+      4000,
+    );
+  };
+
   const prevStopNumber = useRef(null);
   const serviceInterestRef = useRef(null);
   const stopPopoverDataRef = useRef(null);
@@ -709,6 +721,13 @@ const App = () => {
     document.querySelector('meta[property="og:image"]').content = image;
   }, [head]);
 
+  // Links can outlive what they point to (withdrawn services, removed stops).
+  // Go home rather than leave the map half-reset with the search disabled.
+  const showRouteNotFound = (message) => {
+    showToast(message);
+    location.replace('#/');
+  };
+
   const renderRoute = () => {
     const route = getRoute();
 
@@ -763,7 +782,10 @@ const App = () => {
         const services = servicesValue
           .split('~')
           .filter((s) => servicesData[s]);
-        if (!services.length) return; // No value or none of the service codes are valid
+        if (!services.length) {
+          showRouteNotFound(`Bus service ${servicesValue} not found`);
+          return;
+        }
 
         // Reset
         setExpandSearch(false);
@@ -979,7 +1001,10 @@ const App = () => {
       }
       case 'stop': {
         const stop = route.value;
-        if (!stopsData[stop]) return;
+        if (!stopsData[stop]) {
+          showRouteNotFound(`Bus stop ${stop} not found`);
+          return;
+        }
 
         // Reset
         setExpandSearch(false);
@@ -1104,7 +1129,14 @@ const App = () => {
           .split(/[,-]/)
           .map(String);
         if (!stopsData[startStopNumber] || !stopsData[endStopNumber]) {
-          alert('One of the stop numbers are not found.');
+          const missing = [startStopNumber, endStopNumber].filter(
+            (number) => !stopsData[number],
+          );
+          showRouteNotFound(
+            missing.every(Boolean)
+              ? `Bus stop ${missing.join(' and ')} not found`
+              : 'Routes between stops need two bus stops',
+          );
           return;
         }
 
@@ -3259,6 +3291,9 @@ const App = () => {
             <iframe src={showArrivalsPopover.webviewURL}></iframe>
           </div>,
         ]}
+      </div>
+      <div class={`toast ${toast.show ? 'show' : ''}`} role="status">
+        {toast.message}
       </div>
     </>
   );
