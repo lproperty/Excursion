@@ -1,5 +1,3 @@
-import './error-tracking';
-
 import { h, render, Fragment } from 'preact';
 import { useState, useRef, useEffect, useMemo } from 'preact/hooks';
 import maplibregl from 'maplibre-gl';
@@ -57,8 +55,10 @@ const supportsTouch =
 const ruler = new CheapRuler(1.3);
 
 let homeBusPills = null;
+// Set once the data and map are ready for routes to be rendered
+let appReady = false;
 
-let rafST;
+let rafST, rafSTTimeout;
 const rafScrollTop = () => {
   window.scrollTo(0, 0);
   rafST = requestAnimationFrame(rafScrollTop);
@@ -66,7 +66,10 @@ const rafScrollTop = () => {
 
 const $tooltip = document.getElementById('tooltip');
 function showStopTooltip(data) {
-  $tooltip.innerHTML = `<span class="stop-tag">${data.number}</span> ${data.name}`;
+  const tag = document.createElement('span');
+  tag.className = 'stop-tag';
+  tag.textContent = data.number;
+  $tooltip.replaceChildren(tag, ` ${data.name}`);
   $tooltip.classList.add('show');
   const { x, y: top } = data;
   const left = Math.max(
@@ -100,6 +103,12 @@ let fuseServices;
 let fuseStops;
 let fuseAreas;
 
+// Line for one direction of a service, or null if the routes file lacks it
+const routeGeometry = (service, index) => {
+  const line = routesData?.[service]?.[index];
+  return line ? toGeoJSON(line) : null;
+};
+
 const App = () => {
   const [route, setRoute] = useState(getRoute());
   const prevRoute = usePrevious(route);
@@ -124,6 +133,19 @@ const App = () => {
   const [betweenEndStop, setBetweenEndStop] = useState(null);
 
   const [areaInterestingness, setAreaInterestingness] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+
+  // The message stays while the toast fades out
+  const [toast, setToast] = useState({ message: '', show: false });
+  const toastTimeout = useRef(null);
+  const showToast = (message) => {
+    clearTimeout(toastTimeout.current);
+    setToast({ message, show: true });
+    toastTimeout.current = setTimeout(
+      () => setToast((toast) => ({ ...toast, show: false })),
+      4000,
+    );
+  };
 
   const prevStopNumber = useRef(null);
   const serviceInterestRef = useRef(null);
@@ -161,14 +183,24 @@ const App = () => {
     setExpandSearch(true);
     setExpandedSearchOnce(true);
     // $map.classList.add('fade-out');
+
+    // Keep the page pinned while the panel slides up. Stop when the slide
+    // ends, or soon anyway since nothing slides if the panel is already up.
+    cancelAnimationFrame(rafST);
+    clearTimeout(rafSTTimeout);
     rafScrollTop();
-    searchPopover.current?.addEventListener('transitionend', (e) => {
+    const $popover = searchPopover.current;
+    const stopScrollTop = () => {
       cancelAnimationFrame(rafST);
-    });
+      clearTimeout(rafSTTimeout);
+      $popover?.removeEventListener('transitionend', stopScrollTop);
+    };
+    $popover?.addEventListener('transitionend', stopScrollTop);
+    rafSTTimeout = setTimeout(stopScrollTop, 600);
   };
 
   const handleSearch = (e) => {
-    const { value } = (e && e.target) || searchField;
+    const { value } = (e && e.target) || searchField.current || {};
     if (value) {
       const services = fuseServices.search(value);
       let stops = [];
@@ -211,6 +243,10 @@ const App = () => {
   const zoomToArea = (areaName) => {
     const bounds = STORE.areaBounds?.[areaName];
     if (!bounds || bounds.isEmpty()) return;
+    // Move the panel out of the way so the area can be seen
+    searchField.current?.blur();
+    setExpandSearch(false);
+    setShrinkSearch(true);
     map.fitBounds(bounds, { padding: { top: 80, right: 80, bottom: 80, left: 80 } });
   };
 
@@ -344,7 +380,7 @@ const App = () => {
           );
           stopToBeHighlighted?.classList.add('flash');
           stopToBeHighlighted?.scrollIntoView({
-            behaviour: 'smooth',
+            behavior: 'smooth',
             block: 'center',
             inline: 'center',
           });
@@ -532,8 +568,7 @@ const App = () => {
 
     // Auto-select first result
     setTimeout(() => {
-      const firstResult = betweenPopover.current.querySelector('.between-item');
-      firstResult.click();
+      betweenPopover.current?.querySelector('.between-item')?.click();
     }, 300);
   };
 
@@ -624,11 +659,11 @@ const App = () => {
       const geometries = [];
 
       let [service, index] = result.startRoute.split('-');
-      geometries.push(toGeoJSON(routesData[service][index]));
+      geometries.push(routeGeometry(service, index));
 
       if (result.endRoute) {
         let [service, index] = result.endRoute.split('-');
-        geometries.push(toGeoJSON(routesData[service][index]));
+        geometries.push(routeGeometry(service, index));
       }
 
       if (result.startStop && result.startStop.number != startStop.number) {
@@ -645,13 +680,15 @@ const App = () => {
       }
       map.getSource('routes-between').setData({
         type: 'FeatureCollection',
-        features: geometries.map((geometry, i) => ({
-          type: 'Feature',
-          properties: {
-            type: i === 0 ? 'start' : i === 1 ? 'end' : 'walk',
-          },
-          geometry,
-        })),
+        features: geometries
+          .map((geometry, i) => ({
+            type: 'Feature',
+            properties: {
+              type: i === 0 ? 'start' : i === 1 ? 'end' : 'walk',
+            },
+            geometry,
+          }))
+          .filter((feature) => feature.geometry),
       });
 
       // Fit map to stops bounds
@@ -689,16 +726,24 @@ const App = () => {
   };
   const [head, setHead] = useState(defaultHead);
   useEffect(() => {
-    let { title, url, desc, image } = head;
+    let { title, url, desc = defaultHead.desc, image = defaultHead.image } =
+      head;
     document.title = document.querySelector(
       'meta[property="og:title"]',
     ).content = title;
-    if (!/^https?/.test(url)) url = 'https://busrouter.sg/#' + url;
+    if (!/^https?/.test(url)) url = defaultURL + '#' + url;
     document.querySelector('meta[property="og:url"]').content = url;
     document.querySelector('meta[name="description"]').content =
       document.querySelector('meta[property="og:description"]').content = desc;
     document.querySelector('meta[property="og:image"]').content = image;
   }, [head]);
+
+  // Links can outlive what they point to (withdrawn services, removed stops).
+  // Go home rather than leave the map half-reset with the search disabled.
+  const showRouteNotFound = (message) => {
+    showToast(message);
+    location.replace('#/');
+  };
 
   const renderRoute = () => {
     const route = getRoute();
@@ -754,7 +799,10 @@ const App = () => {
         const services = servicesValue
           .split('~')
           .filter((s) => servicesData[s]);
-        if (!services.length) return; // No value or none of the service codes are valid
+        if (!services.length) {
+          showRouteNotFound(`Bus service ${servicesValue} not found`);
+          return;
+        }
 
         // Reset
         setExpandSearch(false);
@@ -970,7 +1018,10 @@ const App = () => {
       }
       case 'stop': {
         const stop = route.value;
-        if (!stopsData[stop]) return;
+        if (!stopsData[stop]) {
+          showRouteNotFound(`Bus stop ${stop} not found`);
+          return;
+        }
 
         // Reset
         setExpandSearch(false);
@@ -1053,15 +1104,15 @@ const App = () => {
 
           // Show all routes
           requestAnimationFrame(() => {
-            const serviceGeometries = routes.map((route) => {
-              const [service, index] = route.split('-');
-              const line = routesData[service][index];
-              const geometry = toGeoJSON(line);
-              return {
-                service,
-                geometry,
-              };
-            });
+            const serviceGeometries = routes
+              .map((route) => {
+                const [service, index] = route.split('-');
+                return {
+                  service,
+                  geometry: routeGeometry(service, index),
+                };
+              })
+              .filter((sg) => sg.geometry);
 
             map.getSource('routes-path').setData({
               type: 'FeatureCollection',
@@ -1095,7 +1146,14 @@ const App = () => {
           .split(/[,-]/)
           .map(String);
         if (!stopsData[startStopNumber] || !stopsData[endStopNumber]) {
-          alert('One of the stop numbers are not found.');
+          const missing = [startStopNumber, endStopNumber].filter(
+            (number) => !stopsData[number],
+          );
+          showRouteNotFound(
+            missing.every(Boolean)
+              ? `Bus stop ${missing.join(' and ')} not found`
+              : 'Routes between stops need two bus stops',
+          );
           return;
         }
 
@@ -1223,11 +1281,6 @@ const App = () => {
       }
     }
 
-    const { pathname, search, hash } = location;
-    gtag('config', window._GA_TRACKING_ID, {
-      page_path: pathname + search + hash,
-    });
-
     setRouteLoading(false);
   };
 
@@ -1258,102 +1311,22 @@ const App = () => {
   const onLoad = async () => {
     window.onhashchange = () => {
       setRoute(getRoute());
-      renderRoute();
+      // Until everything has loaded, the first render picks up the route
+      if (appReady) renderRoute();
     };
 
     const fetchStopsP = fetchCache(stopsJSONPath, CACHE_TIME);
     const fetchServicesP = fetchCache(servicesJSONPath, CACHE_TIME);
     const fetchRoutesP = fetchCache(routesJSONPath, CACHE_TIME);
-    const fetchStopAreasP = fetchCache(stopAreasJSONPath, CACHE_TIME);
-    const fetchAreaVisitCountsP = fetchCache(areaVisitCountsJSONPath, CACHE_TIME);
+    const fetchStopAreasP = fetchCache(stopAreasJSONPath, CACHE_TIME).catch(
+      () => null,
+    );
+    const fetchAreaVisitCountsP = fetchCache(
+      areaVisitCountsJSONPath,
+      CACHE_TIME,
+    ).catch(() => ({}));
 
-    // Init data
-
-    const stops = await fetchStopsP;
-    Object.keys(stops).forEach((number) => {
-      const stop = stops[number];
-      const [lng, lat, name] = stop;
-      let left = false;
-      if (/[19]$/.test(number)) {
-        const oppositeNumber = number.replace(/[19]$/, (d) =>
-          d === '1' ? 9 : 1,
-        );
-        const oppositeStop = stops[oppositeNumber];
-        if (oppositeStop) {
-          const bearing = ruler.bearing(
-            [lng, lat],
-            [oppositeStop[0], oppositeStop[1]],
-          );
-          left = bearing > 0;
-        }
-      }
-      stopsData[number] = {
-        name,
-        number,
-        interchange:
-          /\sint$/i.test(name) && !/^(bef|aft|opp|bet)\s/i.test(name),
-        coordinates: [lng, lat],
-        services: [],
-        routes: [],
-        left,
-      };
-      stopsDataArr.push(stopsData[number]);
-    });
-    stopsDataArr.sort((a, b) => (a.interchange ? 1 : b.interchange ? -1 : 0));
-
-    servicesData = await fetchServicesP;
-    Object.keys(servicesData).forEach((number) => {
-      const { name, routes } = servicesData[number];
-      servicesDataArr.push({
-        number,
-        name,
-      });
-      routes.forEach((route, i) => {
-        route.forEach((stop) => {
-          if (stopsData[stop] && !stopsData[stop].services.includes(number)) {
-            stopsData[stop].services.push(number);
-            stopsData[stop].routes.push(number + '-' + i);
-          }
-        });
-      });
-    });
-    servicesDataArr.sort((a, b) => sortServices(a.number, b.number));
-
-    routesData = await fetchRoutesP;
-
-    STORE.stopAreas = await fetchStopAreasP.catch(() => null);
-    STORE.areaVisitCounts = await fetchAreaVisitCountsP.catch(() => ({}));
-
-    if (STORE.stopAreas) {
-      STORE.areaBounds = {};
-      for (const [stopNumber, areaName] of Object.entries(STORE.stopAreas)) {
-        const stop = stopsData[stopNumber];
-        if (!stop) continue;
-        if (!STORE.areaBounds[areaName]) {
-          STORE.areaBounds[areaName] = new maplibregl.LngLatBounds();
-        }
-        STORE.areaBounds[areaName].extend(stop.coordinates);
-      }
-    }
-
-    const areaData = computeAreaInterestingness(STORE.areaVisitCounts);
-    setAreaInterestingness(areaData);
-    fuseAreas = new Fuse(areaData, {
-      threshold: 0.3,
-      keys: ['area'],
-    });
-
-    setServices(servicesDataArr);
-
-    window._data = {
-      servicesData,
-      stopsData,
-      stopsDataArr,
-      routesData,
-      servicesDataArr,
-      stopAreas: STORE.stopAreas,
-      areaVisitCounts: STORE.areaVisitCounts,
-    };
+    // Start the map while the data downloads, so tiles load in the meantime
 
     // Set up PMTiles protocol
     let protocol = new Protocol();
@@ -1362,23 +1335,34 @@ const App = () => {
     // Create map style
     const mapStyle = createMapStyle({ lang: 'en' });
 
-    map = window._map = new maplibregl.Map({
-      container: 'map',
-      style: mapStyle,
-      renderWorldCopies: false,
-      boxZoom: false,
-      minZoom: 8,
-      attributionControl: false,
-      pitchWithRotate: false,
-      dragRotate: supportsTouch,
-      touchPitch: false,
-      bounds: [lowerLong, lowerLat, upperLong, upperLat],
-      fitBoundsOptions: {
-        padding: BREAKPOINT()
-          ? 120
-          : { top: 40, bottom: window.innerHeight / 2, left: 40, right: 40 },
-      },
-    });
+    try {
+      map = window._map = new maplibregl.Map({
+        container: 'map',
+        style: mapStyle,
+        renderWorldCopies: false,
+        boxZoom: false,
+        minZoom: 8,
+        attributionControl: false,
+        pitchWithRotate: false,
+        dragRotate: supportsTouch,
+        touchPitch: false,
+        bounds: [lowerLong, lowerLat, upperLong, upperLat],
+        fitBoundsOptions: {
+          padding: BREAKPOINT()
+            ? 120
+            : { top: 40, bottom: window.innerHeight / 2, left: 40, right: 40 },
+        },
+      });
+    } catch (e) {
+      // e.g. WebGL isn't available
+      console.error(e);
+      setLoadError("The map couldn't start in this browser.");
+      setRouteLoading(false);
+      return;
+    }
+    const styleLoaded = new Promise((resolve) =>
+      map.once('styledata', resolve),
+    );
 
     if (!supportsTouch) {
       map.touchZoomRotate.disableRotation();
@@ -1416,27 +1400,6 @@ const App = () => {
       compassButton.classList.toggle('show', bearing !== 0);
     });
 
-    // Handle map errors gracefully (suppress mapbox:// URL errors)
-    // map.on('error', (e) => {
-    //   // Suppress errors related to mapbox:// URLs that can't be loaded in maplibre-gl
-    //   if (e.error && e.error.message && e.error.message.includes('mapbox://')) {
-    //     console.warn('Suppressed mapbox:// URL error (expected with maplibre-gl):', e.error.message);
-    //     return;
-    //   }
-    //   // Suppress 422 errors for composite tilesets that may not be accessible
-    //   if (e.error && e.error.status === 422 && e.error.url && e.error.url.includes('api.mapbox.com/v4/')) {
-    //     console.warn('Suppressed 422 error for tileset (may not be accessible):', e.error.url);
-    //     return;
-    //   }
-    //   // Suppress InvalidStateError for sprite decoding issues
-    //   if (e.error && e.error.name === 'InvalidStateError' && e.error.message.includes('source image could not be decoded')) {
-    //     console.warn('Suppressed sprite decoding error (expected with maplibre-gl):', e.error.message);
-    //     return;
-    //   }
-    //   // Log other errors normally
-    //   console.error('Map error:', e.error);
-    // });
-
     let initialMoveStart = false;
     const initialHideSearch = () => {
       if (initialMoveStart) return;
@@ -1446,23 +1409,148 @@ const App = () => {
     map.once('dragstart', initialHideSearch);
     map.once('zoomstart', initialHideSearch);
 
-    // Zoom to user's current location on first visit
+    // Zoom to the user's location on first visit, unless they opened a link
+    // to something else or have started moving the map themselves
     if (navigator.geolocation) {
+      let userMovedMap = false;
+      const onMoveStart = (e) => {
+        if (e.originalEvent) userMovedMap = true;
+      };
+      map.on('movestart', onMoveStart);
       navigator.geolocation.getCurrentPosition(
         (pos) => {
+          map.off('movestart', onMoveStart);
+          if (userMovedMap || getRoute().page !== 'home') return;
           map.flyTo({
             center: [pos.coords.longitude, pos.coords.latitude],
             zoom: 16,
             duration: 1500,
           });
         },
-        () => {}, // silently ignore if denied/unavailable
+        () => map.off('movestart', onMoveStart), // silently ignore if denied/unavailable
         { timeout: 5000 },
       );
     }
 
-    // Show home bus pills whenever the PWA comes to the foreground.
-    // Created before the first location check so an early fix isn't dropped.
+    // Init data
+
+    let stops;
+    try {
+      [stops, servicesData, routesData] = await Promise.all([
+        fetchStopsP,
+        fetchServicesP,
+        fetchRoutesP,
+      ]);
+    } catch (e) {
+      console.error(e);
+      setLoadError(
+        "Couldn't load bus data. Check your connection and try again.",
+      );
+      setRouteLoading(false);
+      return;
+    }
+
+    Object.keys(stops).forEach((number) => {
+      const stop = stops[number];
+      const [lng, lat, name] = stop;
+      let left = false;
+      if (/[19]$/.test(number)) {
+        const oppositeNumber = number.replace(/[19]$/, (d) =>
+          d === '1' ? 9 : 1,
+        );
+        const oppositeStop = stops[oppositeNumber];
+        if (oppositeStop) {
+          const bearing = ruler.bearing(
+            [lng, lat],
+            [oppositeStop[0], oppositeStop[1]],
+          );
+          left = bearing > 0;
+        }
+      }
+      stopsData[number] = {
+        name,
+        number,
+        interchange:
+          /\sint$/i.test(name) && !/^(bef|aft|opp|bet)\s/i.test(name),
+        coordinates: [lng, lat],
+        services: [],
+        routes: [],
+        left,
+      };
+      stopsDataArr.push(stopsData[number]);
+    });
+    stopsDataArr.sort((a, b) => (a.interchange ? 1 : b.interchange ? -1 : 0));
+
+    Object.keys(servicesData).forEach((number) => {
+      // The data files are cached separately, so one can be newer than
+      // another. Drop what the other files don't know about.
+      const service = servicesData[number];
+      service.routes = service.routes.map((route) =>
+        route.filter((stop) => stopsData[stop]),
+      );
+      if (!routesData[number]) routesData[number] = [];
+
+      const { name, routes } = service;
+      servicesDataArr.push({
+        number,
+        name,
+      });
+      routes.forEach((route, i) => {
+        route.forEach((stop) => {
+          if (stopsData[stop] && !stopsData[stop].services.includes(number)) {
+            stopsData[stop].services.push(number);
+            stopsData[stop].routes.push(number + '-' + i);
+          }
+        });
+      });
+    });
+    servicesDataArr.sort((a, b) => sortServices(a.number, b.number));
+
+    STORE.stopAreas = await fetchStopAreasP;
+    STORE.areaVisitCounts = await fetchAreaVisitCountsP;
+
+    if (STORE.stopAreas) {
+      STORE.areaBounds = {};
+      for (const [stopNumber, areaName] of Object.entries(STORE.stopAreas)) {
+        const stop = stopsData[stopNumber];
+        if (!stop || !areaName) continue;
+        if (!STORE.areaBounds[areaName]) {
+          STORE.areaBounds[areaName] = new maplibregl.LngLatBounds();
+        }
+        STORE.areaBounds[areaName].extend(stop.coordinates);
+      }
+    }
+
+    const areaData = computeAreaInterestingness(STORE.areaVisitCounts);
+    setAreaInterestingness(areaData);
+
+    // Search is ready before the map, since it only needs the data
+    fuseAreas = new Fuse(areaData, {
+      threshold: 0.3,
+      keys: ['area'],
+    });
+    fuseServices = new Fuse(servicesDataArr, {
+      threshold: 0.3,
+      keys: ['number', 'name'],
+    });
+    fuseStops = new Fuse(stopsDataArr, {
+      threshold: 0.3,
+      keys: ['number', 'name'],
+    });
+
+    setServices(servicesDataArr);
+
+    window._data = {
+      servicesData,
+      stopsData,
+      stopsDataArr,
+      routesData,
+      servicesDataArr,
+      stopAreas: STORE.stopAreas,
+      areaVisitCounts: STORE.areaVisitCounts,
+    };
+
+    // Show home bus pills whenever the PWA comes to the foreground
     homeBusPills = new HomeBusPills({
       map,
       stopsDataArr,
@@ -1491,30 +1579,10 @@ const App = () => {
     // Also trigger immediately on load if page is already visible
     if (document.visibilityState === 'visible') onVisibilityChange();
 
-    await new Promise((resolve, reject) => {
-      map.once('styledata', () => {
-        const layers = map.getStyle().layers;
-        console.log(layers);
-
-        labelLayerId = layers.find(
-          (l) => l.type == 'symbol' && l.layout['text-field'],
-        ).id;
-
-        resolve();
-      });
-    });
-
-    // const localizedStyle = language.setLanguage(map.getStyle(), 'zh-Hans');
-    // map.setStyle(localizedStyle);
-
-    if (window.performance) {
-      const timeSincePageLoad = Math.round(performance.now());
-      gtag('event', 'timing_complete', {
-        name: 'load',
-        value: timeSincePageLoad,
-        event_category: 'Map',
-      });
-    }
+    await styleLoaded;
+    labelLayerId = map
+      .getStyle()
+      .layers.find((l) => l.type == 'symbol' && l.layout['text-field']).id;
 
     map
       .loadImage(stopImagePath)
@@ -2596,23 +2664,8 @@ const App = () => {
       },
     });
 
+    appReady = true;
     renderRoute();
-
-    // Popover search field
-    fuseServices = new Fuse(servicesDataArr, {
-      threshold: 0.3,
-      keys: ['number', 'name'],
-    });
-    fuseStops = new Fuse(stopsDataArr, {
-      threshold: 0.3,
-      keys: ['number', 'name'],
-    });
-
-    requestIdleCallback(() => {
-      // For cases when user already typed something before fuse.js inits
-      if (searchField.current?.value) handleSearch();
-
-    });
   }, [mapLoaded]);
 
   useEffect(() => {
@@ -2719,9 +2772,13 @@ const App = () => {
     showServicePopover,
     popoverIsUp,
   ]);
-  document.addEventListener('keyup', () => {
-    document.body.classList.remove('alt-mode');
-  });
+  useEffect(() => {
+    const handler = () => {
+      document.body.classList.remove('alt-mode');
+    };
+    document.addEventListener('keyup', handler);
+    return () => document.removeEventListener('keyup', handler);
+  }, []);
 
   const showServicesFloatPill =
     route.page === 'service' && servicesData && routeServices.length > 1;
@@ -2745,7 +2802,7 @@ const App = () => {
           hidden={!(showServicesFloatPill || showPassingRoutesFloatPill)}
         >
           <div class="float-pill" ref={floatPill}>
-            <a href="#/" class="popover-close">
+            <a href="#/" class="popover-close" aria-label="Close">
               &times;
             </a>
             {showServicesFloatPill && (
@@ -2971,6 +3028,17 @@ const App = () => {
                 <li class="nada">No results.</li>
               )}
             </ul>
+          ) : loadError ? (
+            <div class="popover-error" role="alert">
+              <p>{loadError}</p>
+              <button
+                type="button"
+                class="popover-button primary"
+                onClick={() => location.reload()}
+              >
+                Try again
+              </button>
+            </div>
           ) : areaInterestingness.length > 0 ? (
             <div class="popover-areas-scroll" ref={servicesList}>
               <AreaInterestingness areas={areaInterestingness} onAreaClick={zoomToArea} />
@@ -2999,7 +3067,7 @@ const App = () => {
       >
         {stopPopoverData && (
           <>
-            <a href="#/" onClick={hideStopPopover} class="popover-close">
+            <a href="#/" onClick={hideStopPopover} class="popover-close" aria-label="Close">
               &times;
             </a>
             <header>
@@ -3075,7 +3143,7 @@ const App = () => {
         class={`popover ${showServicePopover ? 'expand' : ''}`}
         key={``}
       >
-        <a href="#/" onClick={navBackToStop} class="popover-close">
+        <a href="#/" onClick={navBackToStop} class="popover-close" aria-label="Close">
           &times;
         </a>
         {servicesData && routeServices.length && (
@@ -3136,7 +3204,7 @@ const App = () => {
         class={`popover ${showBetweenPopover ? 'expand' : ''}`}
       >
         {showBetweenPopover && [
-          <a href="#/" onClick={resetStartEndStops} class="popover-close">
+          <a href="#/" onClick={resetStartEndStops} class="popover-close" aria-label="Close">
             &times;
           </a>,
           <header>
@@ -3225,7 +3293,7 @@ const App = () => {
         class={`popover ${showArrivalsPopover ? 'expand' : ''}`}
       >
         {showArrivalsPopover && [
-          <a href="#/" onClick={closeBusArrival} class="popover-close">
+          <a href="#/" onClick={closeBusArrival} class="popover-close" aria-label="Close">
             &times;
           </a>,
           <a
@@ -3245,6 +3313,9 @@ const App = () => {
           </div>,
         ]}
       </div>
+      <div class={`toast ${toast.show ? 'show' : ''}`} role="status">
+        {toast.message}
+      </div>
     </>
   );
 };
@@ -3260,25 +3331,13 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-if (
-  matchMedia('(display-mode: standalone)').matches ||
-  'standalone' in navigator
-) {
-  gtag('event', 'pwa_load', {
-    event_category: 'PWA',
-    event_label: 'standalone',
-    value: true,
-    non_interaction: true,
-  });
-}
-
 if (window.navigator.standalone) {
   document.body.classList.add('standalone');
 
   // Refresh map size when dismissing software keyboard
   // https://stackoverflow.com/a/19464029/20838
   document.addEventListener('focusout', () => {
-    if (_map) _map.resize();
+    window._map?.resize();
   });
 
   // Enable CSS active states

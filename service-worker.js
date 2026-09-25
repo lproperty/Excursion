@@ -6,14 +6,14 @@ import {
 } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
-import * as googleAnalytics from 'workbox-google-analytics';
-
-googleAnalytics.initialize();
 
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({
     cacheName: 'index',
+    // On a weak signal, open from cache instead of waiting for the request
+    // to time out
+    networkTimeoutSeconds: 3,
     plugins: [
       new CacheableResponsePlugin({
         statuses: [200],

@@ -1,5 +1,3 @@
-import './error-tracking';
-
 import { h, render, Fragment } from 'preact';
 import { useState, useRef, useEffect, useLayoutEffect } from 'preact/hooks';
 
@@ -57,7 +55,7 @@ const WheelChairInaccessible = ({ size = 11 }) => (
 const Bus = (props) => {
   const { maxPx, index, duration_ms, type, load, feature, _ghost, _id } = props;
 
-  const busImage = BUSES[type.toLowerCase()];
+  const busImage = BUSES[(type || '').toLowerCase()];
 
   const prevPx = useRef();
   const px = (duration_ms / 1000 / 60) * (duration_ms > 0 ? 10 : 2.5);
@@ -88,10 +86,10 @@ const Bus = (props) => {
         {/* <b class="debug">{_id}</b> */}
         <img {...busImage} />
         <br />
-        <span class={`time time-${load.toLowerCase()}`}>
+        <span class={`time time-${(load || '').toLowerCase()}`}>
           <ArrivalTimeText ms={duration_ms} />
         </span>
-        {feature.toLowerCase() !== 'wab' && <WheelChairInaccessible />}
+        {(feature || '').toLowerCase() !== 'wab' && <WheelChairInaccessible />}
       </span>
     </span>
   );
@@ -184,9 +182,17 @@ function ArrivalTimes() {
     JSON.parse(localStorage.getItem('busroutersg.arrival.pinnedServices')) ||
     [];
   const [pinnedServices, setPinnedServices] = useState(initialPinnedServices);
+  const [stopsError, setStopsError] = useState(false);
 
   useEffect(async () => {
-    const stops = await fetchCache(stopsJSONPath, 24 * 60);
+    let stops;
+    try {
+      stops = await fetchCache(stopsJSONPath, 24 * 60);
+    } catch (e) {
+      console.error(e);
+      setStopsError(true);
+      return;
+    }
 
     window.onhashchange = () => {
       const code = location.hash.slice(1);
@@ -267,6 +273,17 @@ function ArrivalTimes() {
         JSON.stringify(pinnedServices),
       );
     } catch (e) {}
+  }
+
+  if (stopsError) {
+    return (
+      <p class="load-error">
+        Couldn't load bus stops. Check your connection.
+        <button type="button" onClick={() => location.reload()}>
+          Try again
+        </button>
+      </p>
+    );
   }
 
   if (!busStop) {
