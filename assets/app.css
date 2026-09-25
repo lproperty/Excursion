@@ -1651,21 +1651,28 @@ a.service-tag:hover {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 68px;
-  height: 68px;
-  margin-top: -34px;
-  margin-left: -34px;
+  width: 100px;
+  height: 100px;
+  margin-top: -50px;
+  margin-left: -50px;
+  /* Beam pointing up (0deg), faded out towards its tip */
   background: conic-gradient(
-    from -30deg,
+    from -35deg,
     transparent 0deg,
-    #4a90d9aa 15deg,
-    #4a90d9cc 30deg,
-    #4a90d9cc 30deg,
-    #4a90d9aa 45deg,
-    transparent 60deg
+    #007aff 12deg,
+    #007aff 58deg,
+    transparent 70deg
   );
-  mask-image: radial-gradient(circle, transparent 12px, black 14px, transparent 34px);
-  -webkit-mask-image: radial-gradient(circle, transparent 12px, black 14px, transparent 34px);
+  mask-image: radial-gradient(
+    circle closest-side,
+    rgba(0, 0, 0, 0.65) 12px,
+    transparent
+  );
+  -webkit-mask-image: radial-gradient(
+    circle closest-side,
+    rgba(0, 0, 0, 0.65) 12px,
+    transparent
+  );
   border-radius: 50%;
 }
 /* .user-location-accuracy {

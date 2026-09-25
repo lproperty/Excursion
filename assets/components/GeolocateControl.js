@@ -10,6 +10,7 @@ export default class GeolocateControl {
   _currentLocation = null;
   _buttonClicked = false;
   _orientationGranted = false;
+  _heading = null;
   _retries = 0;
   constructor(options) {
     this.options = Object.assign(
@@ -62,6 +63,8 @@ export default class GeolocateControl {
         this._updateButtonState(null);
       }
     });
+    // Keep the cone pointing the right way when the map is rotated
+    this._map.on('rotate', this._updateCompass);
 
     this._setup = true;
 
@@ -135,13 +138,42 @@ export default class GeolocateControl {
       e.webkitCompassHeading ??
       (e.alpha !== null ? compassHeading(e.alpha, e.beta, e.gamma) : null);
     if (heading === null) return;
+    this._heading = heading;
+    this._updateCompass();
+  };
+  _updateCompass = () => {
+    if (this._heading === null) return;
     this._compass.hidden = false;
-    this._compass.style.transform = `rotate(${Math.round(heading)}deg)`;
+    const rotation = Math.round(this._heading - this._map.getBearing());
+    this._compass.style.transform = `rotate(${rotation}deg)`;
+  };
+  // iOS only sends compass readings once Motion & Orientation access is
+  // allowed, and only prompts for it during a tap. Tracking starts on load
+  // without a tap when location is already allowed, so keep asking on each
+  // button tap until access is granted.
+  _requestOrientationPermission = () => {
+    if (
+      this._orientationGranted ||
+      !window.DeviceOrientationEvent ||
+      typeof DeviceOrientationEvent.requestPermission !== 'function'
+    ) {
+      return Promise.resolve();
+    }
+    return DeviceOrientationEvent.requestPermission()
+      .then((permissionState) => {
+        this._orientationGranted = permissionState === 'granted';
+      })
+      .catch((e) => {
+        console.warn('DeviceOrientation permission error:', e);
+      });
   };
   _clickButton = (e, locking = true) => {
     if (e) e.preventDefault();
     if (!this._setup) return;
     const { onClick } = this.options;
+
+    // Must run synchronously within the tap for iOS to show its prompt
+    const orientationPermission = this._requestOrientationPermission();
 
     if (this._watching) {
       this._updateButtonState('active');
@@ -234,33 +266,11 @@ export default class GeolocateControl {
               : 'deviceorientation';
         }
         window.addEventListener(deviceorientation, this._setHeading, false);
-
-        // On iOS, requestPermission() must be called directly from a user
-        // gesture. Request orientation permission FIRST, then start geolocation
-        // — otherwise watchPosition() consumes the gesture context and the
-        // orientation permission silently fails.
-        if (
-          !this._orientationGranted &&
-          typeof DeviceOrientationEvent.requestPermission === 'function'
-        ) {
-          DeviceOrientationEvent.requestPermission()
-            .then((permissionState) => {
-              if (permissionState === 'granted') {
-                this._orientationGranted = true;
-              }
-            })
-            .catch((e) => {
-              console.warn('DeviceOrientation permission error:', e);
-            })
-            .finally(() => {
-              startWatching();
-            });
-        } else {
-          startWatching();
-        }
-      } else {
-        startWatching();
       }
+
+      // Start geolocation only after the orientation prompt (if any) is
+      // answered, so the two iOS prompts don't compete
+      orientationPermission.finally(startWatching);
     }
   };
 }
