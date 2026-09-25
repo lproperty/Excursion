@@ -4,14 +4,15 @@ import compassHeading from '../utils/compassHeading';
 
 // A fork of Mapbox GL JS's GeolocateControl, simplified + compass support
 export default class GeolocateControl {
-  _watching = false;
+  _watching = false; // Has a location fix
+  _watchId = null;
   _locking = false;
   _setup = false;
   _currentLocation = null;
   _buttonClicked = false;
   _orientationGranted = false;
+  _deviceorientation = null; // Event name listened to for compass readings
   _heading = null;
-  _retries = 0;
   constructor(options) {
     this.options = Object.assign(
       {
@@ -180,14 +181,20 @@ export default class GeolocateControl {
       this._flyToCurrentLocation();
       this._locking = true;
       onClick(this._currentLocation);
+    } else if (this._watchId !== null) {
+      // Still waiting for the first fix; it'll be shown when it arrives
+      this._updateButtonState('loading');
+      this._locking = this._locking || locking;
     } else {
       this._updateButtonState('loading');
       this._buttonClicked = true;
       this._locking = locking;
-      let deviceorientation;
+      const userInitiated = !!e;
 
       const startWatching = () => {
-        this._watching = navigator.geolocation.watchPosition(
+        // A second tap can land while the orientation prompt is open
+        if (this._watchId !== null) return;
+        this._watchId = navigator.geolocation.watchPosition(
           (position) => {
             console.log({ position });
             const { latitude, longitude } = position.coords;
@@ -219,27 +226,34 @@ export default class GeolocateControl {
             this._watching = true;
           },
           (e) => {
-            this._locking = false;
-            this._watching = false;
+            console.warn(e);
             this._buttonClicked = false;
-
-            this._updateButtonState(null);
-            navigator.geolocation.clearWatch(this._watching);
-            if (deviceorientation) {
-              window.removeEventListener(deviceorientation, this._setHeading);
+            if (!this._watching) {
+              // Don't fly to a first fix that turns up long after the tap
+              this._locking = false;
+              this._updateButtonState(null);
             }
 
-            console.warn(e);
-            this._retries++;
-            if (e.code === 1) {
-              // PERMISSION_DENIED
+            // Timeouts and lost signal are temporary and the watch keeps
+            // running, so only give up when access is refused
+            if (e.code !== e.PERMISSION_DENIED) return;
+            navigator.geolocation.clearWatch(this._watchId);
+            this._watchId = null;
+            this._watching = false;
+            this._locking = false;
+            this._updateButtonState(null);
+            if (this._deviceorientation) {
+              window.removeEventListener(
+                this._deviceorientation,
+                this._setHeading,
+              );
+              this._deviceorientation = null;
+            }
+            // Only explain when asked, not when tracking started by itself
+            if (userInitiated) {
               alert(
                 'Looks like location tracking is blocked on your browser. Please enable it in the settings to use this feature.',
               );
-            } else {
-              if (this._retries > 3) return;
-              // Retry again
-              this._clickButton();
             }
           },
           {
@@ -250,7 +264,7 @@ export default class GeolocateControl {
         );
       };
 
-      if (window.DeviceOrientationEvent) {
+      if (window.DeviceOrientationEvent && !this._deviceorientation) {
         // https://developers.google.com/web/updates/2016/03/device-orientation-changes
         // https://stackoverflow.com/a/47870694/20838
         // iOS Safari supports webkitCompassHeading via 'deviceorientation' only.
@@ -258,14 +272,18 @@ export default class GeolocateControl {
         // iOS or localhost Chrome, so only use it on non-Apple browsers.
         const isApple = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent);
         if (location.hostname === 'localhost' || isApple) {
-          deviceorientation = 'deviceorientation';
+          this._deviceorientation = 'deviceorientation';
         } else {
-          deviceorientation =
+          this._deviceorientation =
             'ondeviceorientationabsolute' in window
               ? 'deviceorientationabsolute'
               : 'deviceorientation';
         }
-        window.addEventListener(deviceorientation, this._setHeading, false);
+        window.addEventListener(
+          this._deviceorientation,
+          this._setHeading,
+          false,
+        );
       }
 
       // Start geolocation only after the orientation prompt (if any) is
