@@ -182,9 +182,17 @@ function ArrivalTimes() {
     JSON.parse(localStorage.getItem('busroutersg.arrival.pinnedServices')) ||
     [];
   const [pinnedServices, setPinnedServices] = useState(initialPinnedServices);
+  const [stopsError, setStopsError] = useState(false);
 
   useEffect(async () => {
-    const stops = await fetchCache(stopsJSONPath, 24 * 60);
+    let stops;
+    try {
+      stops = await fetchCache(stopsJSONPath, 24 * 60);
+    } catch (e) {
+      console.error(e);
+      setStopsError(true);
+      return;
+    }
 
     window.onhashchange = () => {
       const code = location.hash.slice(1);
@@ -265,6 +273,17 @@ function ArrivalTimes() {
         JSON.stringify(pinnedServices),
       );
     } catch (e) {}
+  }
+
+  if (stopsError) {
+    return (
+      <p class="load-error">
+        Couldn't load bus stops. Check your connection.
+        <button type="button" onClick={() => location.reload()}>
+          Try again
+        </button>
+      </p>
+    );
   }
 
   if (!busStop) {

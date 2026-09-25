@@ -635,6 +635,13 @@ a:active {
   opacity: 0.5;
   pointer-events: none;
 }
+.popover-error {
+  padding: 14px;
+  color: #333;
+}
+.popover-error p {
+  margin: 0 0 12px;
+}
 .popover-list li.nada {
   padding: 14px;
   pointer-events: none;
