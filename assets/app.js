@@ -1461,7 +1461,16 @@ const App = () => {
       );
     }
 
-    // Show home bus pills whenever the PWA comes to the foreground
+    // Show home bus pills whenever the PWA comes to the foreground.
+    // Created before the first location check so an early fix isn't dropped.
+    homeBusPills = new HomeBusPills({
+      map,
+      stopsDataArr,
+      stopsData,
+      servicesData,
+      routesData,
+      ruler,
+    });
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
         homeBusPills?.hide();
@@ -1660,7 +1669,6 @@ const App = () => {
     });
 
     setMapLoaded(true);
-    homeBusPills = new HomeBusPills({ map, stopsDataArr, stopsData, servicesData, ruler });
   };
 
   useEffect(() => {
